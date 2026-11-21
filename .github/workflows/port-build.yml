@@ -1,85 +1,114 @@
 name: Port build check
+run-name: Semantic audit ${{ inputs.source_commit }}
 on:
-  pull_request:
-    paths:
-      - 'port/patches/M*.patch'
-      - 'port/patches/M*.json'
-      - 'port/target.json'
-      - 'scripts/port-ci-build.py'
-      - '.github/workflows/port-build.yml'
   workflow_dispatch:
     inputs:
+      source_commit:
+        description: Exact contribution commit to build and audit
+        required: true
+        type: string
       patch_ids:
-        description: 'Space-separated module (M005629) or packet (P0015) IDs to build'
-        required: false
-        default: 'M005629'
+        description: Space-separated module IDs
+        required: true
         type: string
 permissions:
   contents: read
-concurrency:
-  group: port-build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+env:
+  AUDIT_SOURCE_COMMIT: ${{ inputs.source_commit }}
+  PATCH_IDS: ${{ inputs.patch_ids }}
+  AUDIT_POLICY_COMMIT: 749aefb802680024c33d06c58ad4b2ed75a1d3a1
+  AUDIT_SCRIPT_SHA256: aa5d944f11e687880959ea125061ef562594ba8352076da4b83e2f496cb9e39b
 jobs:
-  port-build:
+  semantic-audit:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          repository: alectionary/alpoge-rh-replay
+          ref: ${{ inputs.source_commit }}
+          path: source
+          fetch-depth: 1
           persist-credentials: false
-      - name: Validate port records and patch policy
-        run: python3 tracker/validate_ports.py
-      - name: Determine target modules
-        id: targets
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_REF: ${{ github.base_ref }}
-          DISPATCH_IDS: ${{ inputs.patch_ids }}
+      - uses: actions/checkout@v4
+        with:
+          repository: rohanarun/alpoge-rh-replay
+          ref: ${{ env.AUDIT_POLICY_COMMIT }}
+          path: policy
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact source, policy, pins and module manifest
+        working-directory: source
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            ids="${DISPATCH_IDS:-M005629}"
-            echo "mode=explicit" >> "$GITHUB_OUTPUT"
-            echo "ids=$ids" >> "$GITHUB_OUTPUT"
-          else
-            changed=$(git diff --name-only --diff-filter=ACMR "origin/${BASE_REF}...HEAD" -- 'port/patches/M*.json' 'port/patches/M*.patch')
-            if [ -n "$changed" ]; then
-              echo "mode=diff" >> "$GITHUB_OUTPUT"
-              echo "ids=" >> "$GITHUB_OUTPUT"
-            else
-              echo "No port/patches/M* files changed; running smoke test on M005629."
-              echo "mode=explicit" >> "$GITHUB_OUTPUT"
-              echo "ids=M005629" >> "$GITHUB_OUTPUT"
-            fi
-          fi
-      - name: Free disk space for Mathlib cache and Lean build
+          python3 - <<'PY'
+          import gzip, hashlib, json, os, re, subprocess
+          from pathlib import Path
+          actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          assert re.fullmatch(r"[0-9a-f]{40}", os.environ["AUDIT_SOURCE_COMMIT"])
+          assert actual == os.environ["AUDIT_SOURCE_COMMIT"]
+          policy = Path("../policy").resolve()
+          policy_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=policy, text=True).strip()
+          assert policy_sha == os.environ["AUDIT_POLICY_COMMIT"]
+          script_sha = hashlib.sha256((policy / "port/islattice_audit.lean").read_bytes()).hexdigest()
+          assert script_sha == os.environ["AUDIT_SCRIPT_SHA256"]
+          pins = json.loads(Path("port/target.json").read_text())
+          assert pins["lean"] == "leanprover/lean4:v4.36.0"
+          assert pins["mathlib"] == "fc4f59e577feb1a4956671bc04ac18aaaf8cd842"
+          ids = os.environ["PATCH_IDS"].split()
+          assert ids and all(re.fullmatch(r"M[0-9]{6}", mid) for mid in ids)
+          rows = {r["id"]: r for r in map(json.loads, gzip.open("tracker/modules.jsonl.gz", "rt"))}
+          closure = set()
+          def include(mid):
+              if mid in closure:
+                  return
+              assert Path("port/patches", mid + ".json").is_file(), mid
+              closure.add(mid)
+              for dependency in rows[mid]["imports"]:
+                  include(dependency)
+          for mid in ids:
+              include(mid)
+          manifest = [{"id": mid, "module": rows[mid]["module"]} for mid in sorted(closure)]
+          (Path(os.environ["RUNNER_TEMP"]) / "port-semantic-manifest.json").write_text(json.dumps(manifest))
+          print("[AUDIT_SOURCE]", actual, flush=True)
+          print("[AUDIT_POLICY]", policy_sha, flush=True)
+          print("[AUDIT_SCRIPT_SHA256]", script_sha, flush=True)
+          for row in manifest:
+              print("[AUDIT_MODULE]", row["id"], row["module"], flush=True)
+          PY
+      - name: Free disk space for Mathlib and Lean
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h
-      - name: Install elan and the target Lean toolchain
+      - name: Install the pinned Lean toolchain
+        working-directory: source
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y elan
-          LEAN_TOOLCHAIN="$(python3 -c "import json; print(json.load(open('port/target.json'))['lean'])")"
-          elan toolchain install "$LEAN_TOOLCHAIN"
-          elan default "$LEAN_TOOLCHAIN"
+          elan toolchain install leanprover/lean4:v4.36.0
+          elan default leanprover/lean4:v4.36.0
           lean --version
           lake --version
-      - name: Fetch verified sources, apply patches, and build with Lean
-        env:
-          BASE_REF: ${{ github.base_ref }}
-          TARGET_MODE: ${{ steps.targets.outputs.mode }}
-          TARGET_IDS: ${{ steps.targets.outputs.ids }}
+      - name: Build the exact contribution and verified project imports
+        working-directory: source
         run: |
-          if [ "$TARGET_MODE" = "explicit" ]; then
-            # shellcheck disable=SC2086
-            python3 scripts/port-ci-build.py \
-              --workspace "$RUNNER_TEMP/port-workspace" \
-              --setup-lake \
-              --patch-ids $TARGET_IDS
-          else
-            python3 scripts/port-ci-build.py \
-              --workspace "$RUNNER_TEMP/port-workspace" \
-              --setup-lake \
-              --base-ref "origin/${BASE_REF}"
-          fi
+          read -r -a ids <<< "$PATCH_IDS"
+          python3 scripts/port-ci-build.py \
+            --workspace "$RUNNER_TEMP/port-semantic-workspace" \
+            --setup-lake \
+            --patch-ids "${ids[@]}"
+      - name: Audit elaborated statements and definition bodies
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          workspace = Path(os.environ["RUNNER_TEMP"]) / "port-semantic-workspace"
+          auditor = Path(os.environ["GITHUB_WORKSPACE"]) / "policy/port/islattice_audit.lean"
+          manifest = json.loads((Path(os.environ["RUNNER_TEMP"]) / "port-semantic-manifest.json").read_text())
+          for row in manifest:
+              obj = workspace / (".lake/build/lib/lean/" + row["module"].replace(".", "/") + ".olean")
+              assert obj.is_file(), obj
+              print("[AUDIT_OBJECT]", row["id"], hashlib.sha256(obj.read_bytes()).hexdigest(), flush=True)
+              subprocess.run(["lake", "env", "lean", "--run", str(auditor), row["module"]],
+                             cwd=workspace, check=True)
+          print("ISLATTICE_AUDIT_PASSED all", len(manifest), "module(s).", flush=True)
+          PY
