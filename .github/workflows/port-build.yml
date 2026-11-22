@@ -318,7 +318,7 @@ jobs:
           imports = "import Lean\n" + "".join("import " + name + "\n" for name in required.values())
           # Only these diagnostic files receive pretty-printing options. Project sources,
           # the certificate and Lean's resource limits are unchanged.
-          imports += "\nset_option pp.all true\nset_option pp.proofs true\nset_option pp.fullNames true\n"
+          imports += "\nset_option pp.all true\nset_option pp.proofs true\nset_option pp.fullNames true\nset_option pp.maxSteps 1000000\n"
           template = r'''
           open Lean in
           run_cmd do
