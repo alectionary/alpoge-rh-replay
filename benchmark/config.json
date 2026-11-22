@@ -1,33 +1,33 @@
 {
   "baseline": {
-    "commit": "1b894f7511841e6607bc0398cf2657526bbb29d9",
+    "commit": "1cc42d2c900ba764cb63e3c36383c720f30a77ca",
     "repository": "leanprover-community/riemann-hypothesis"
   },
   "candidate": {
     "additional_private_imports": [],
     "patch_path": "candidate.patch",
-    "patch_sha256": "785a902a3cc24d5bf3ed7c61f6a88ec33babb69587c538c97316600efc3cd1b8",
+    "patch_sha256": "b58e57cdb7e8c8d3497d115ddac3821d0191774195616601f11efdf5ba37d99b",
     "source_path": "candidate.lean",
-    "source_sha256": "9c16596ce0b47b6c1ba89f4ef834a94d46845bb506d4a24e3f22e95427d8ed3c"
+    "source_sha256": "02ba7ab0da54f83795418b724ed46da0a8223eaef55553e6941aa2cf33ebab78"
   },
   "comparison_mode": "baseline_closure_plus_target_patch",
   "execution_repository": "alectionary/alpoge-rh-replay",
   "manifest": {
     "path": "source-manifest.json",
-    "sha256": "de1a6a096cd17a98ba4652c0c40c3c0cbdd522a904a1c94de645a6c7f77d59c0"
+    "sha256": "8b868c5c95cf2264faa35bd3173a21b4bb44af3c4875cf5a22edb5adb6175248"
   },
   "order": "ABBAAB",
   "post_build_driver": {
     "path": "post-build-check.lean",
-    "sha256": "831c1fbcf49ef92d8aff1ce9b95cbd2a78ebd75f135ef44b9f9f9b51651c8625"
+    "sha256": "40e68808513810ada5bed50dc1d63ca867b76befc6a8e355996a70877542bceb"
   },
   "required_reviews": {
-    "independent_candidate": "c7002da93e70c19c4d7828aa4845f99d3e2dea15acb8e4ac99a449a9d0447410",
-    "independent_method": "45200f932165fdbf4191157c720f3797f327323e7d2abcb05314480d5ad44ff1",
-    "root_candidate": "cdd94b9d3931f53beea4bd475e647113ce46b2c57c7238cc1405daf113c6aad3",
-    "root_method": "82594c5f09d0717d0b072813a651e76c1b8846fa9d2d3f5284071b06e66a16e5"
+    "independent_candidate": "a6b30310aba0410b7b597f4213ded8e0fde10c8bd72193361bd264f2625453ca",
+    "independent_method": "2aa4a2cf8126fbc6a67590aa9fad4b136accc891f015817abb1f341d88d63548",
+    "root_candidate": "3509262b8afb2318adc82c8fd698104078bfcb453252976ffb37ef70017b45ba",
+    "root_method": "39f09e9574697ebea06fd2acb52014bd14ce801a839c5399532ed3dadc162892"
   },
   "schema_version": 1,
-  "status": "Reviewed bounded DB.pi experiment; no actual compilation or performance result and no canonical PR approval.",
+  "status": "Reviewed bounded amplitude_bound_far comparison; no actual compilation, performance result or canonical source PR approval.",
   "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts"
 }

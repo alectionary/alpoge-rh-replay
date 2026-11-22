@@ -17,18 +17,18 @@ import subprocess
 import time
 
 ORDER = 'ABBAAB'
-MANIFEST_SHA256 = 'de1a6a096cd17a98ba4652c0c40c3c0cbdd522a904a1c94de645a6c7f77d59c0'
+MANIFEST_SHA256 = '8b868c5c95cf2264faa35bd3173a21b4bb44af3c4875cf5a22edb5adb6175248'
 TARGET = 'Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts'
 ADDITIONAL_PRIVATE_IMPORTS = ()
 BASELINE_TARGET_SHA256 = '91d9392acb58ae737203bc8385f51bb01a13e670cdea47b8c808e31d4e943872'
-CANDIDATE_SHA256 = '9c16596ce0b47b6c1ba89f4ef834a94d46845bb506d4a24e3f22e95427d8ed3c'
-CANDIDATE_PATCH_SHA256 = '785a902a3cc24d5bf3ed7c61f6a88ec33babb69587c538c97316600efc3cd1b8'
-BASELINE = '1b894f7511841e6607bc0398cf2657526bbb29d9'
+CANDIDATE_SHA256 = '02ba7ab0da54f83795418b724ed46da0a8223eaef55553e6941aa2cf33ebab78'
+CANDIDATE_PATCH_SHA256 = 'b58e57cdb7e8c8d3497d115ddac3821d0191774195616601f11efdf5ba37d99b'
+BASELINE = '1cc42d2c900ba764cb63e3c36383c720f30a77ca'
 LEAN = 'Lean (version 4.36.0, x86_64-unknown-linux-gnu, commit 611c117bfaf7b7ae1cfcf246ce6fba31e8f509e9, Release)'
 LAKE = 'Lake version 5.0.0-src+611c117 (Lean version 4.36.0)'
-POSTCHECK_SHA256 = '831c1fbcf49ef92d8aff1ce9b95cbd2a78ebd75f135ef44b9f9f9b51651c8625'
+POSTCHECK_SHA256 = '40e68808513810ada5bed50dc1d63ca867b76befc6a8e355996a70877542bceb'
 ALLOWED_AXIOMS = {'propext', 'Classical.choice', 'Quot.sound'}
-CHECK_DECLARATIONS = {'Formalism.FourierDecayAlt.P.EtaleIntegralityFacts.DB.pi'}
+CHECK_DECLARATIONS = {'Formalism.FourierDecayAlt.P.amplitude_bound_far'}
 COMPILED_SUFFIXES = ('.olean', '.olean.private', '.olean.server', '.ilean', '.ir', '.ir.sig',
                      '.so', '.a', '.o', '.c', '.bc', '.ll')
 PINNED_FILES = {
@@ -182,9 +182,9 @@ def load_config(path, expected_sha):
             seen.add(mid)
             pending.extend(modules[mid]['project_imports'])
     require(seen == set(modules) and len(seen) == 15, 'Baseline closure differs.')
-    require(modules[TARGET]['sha256'] == BASELINE_TARGET_SHA256, 'Wrong DB.pi baseline source.')
+    require(modules[TARGET]['sha256'] == BASELINE_TARGET_SHA256, 'Wrong amplitude_bound_far baseline source.')
     candidate = config['candidate']
-    require(candidate['source_sha256'] == CANDIDATE_SHA256 and candidate['patch_sha256'] == CANDIDATE_PATCH_SHA256, 'Candidate remains unbound or differs from this fixed DB.pi prototype.')
+    require(candidate['source_sha256'] == CANDIDATE_SHA256 and candidate['patch_sha256'] == CANDIDATE_PATCH_SHA256, 'Candidate remains unbound or differs from this fixed amplitude_bound_far prototype.')
     data = relative_file(path.parent, candidate['source_path']).read_bytes()
     patch = relative_file(path.parent, candidate['patch_path']).read_bytes()
     require(digest(data) == candidate['source_sha256'] and digest(patch) == candidate['patch_sha256'], 'Candidate/patch bytes differ.')

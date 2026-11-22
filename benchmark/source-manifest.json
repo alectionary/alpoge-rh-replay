@@ -424,7 +424,7 @@
     }
   },
   "schema_version": 1,
-  "scope": "Pinned fifteen-source unchanged closure for DB.pi finite-product derivative bounds; baseline and candidate have the same twelve direct imports. Source inspection only, no build or proof approval.",
-  "source_commit": "1b894f7511841e6607bc0398cf2657526bbb29d9",
+  "scope": "Pinned fifteen-source unchanged closure for amplitude_bound_far and the far-amplitude derivative bound; baseline and candidate have the same twelve direct imports. Source inspection only, no build or proof approval.",
+  "source_commit": "1cc42d2c900ba764cb63e3c36383c720f30a77ca",
   "target": "Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts"
 }
