@@ -23,7 +23,7 @@ ADDED_IMPORT = 'Formalism.HermitianCurvature.HermitianCurvatureProofs.WhittakerV
 BASELINE = 'c7791603122c0328f79e49f6be5d7d4402effc53'
 LEAN = 'Lean (version 4.36.0, x86_64-unknown-linux-gnu, commit 611c117bfaf7b7ae1cfcf246ce6fba31e8f509e9, Release)'
 LAKE = 'Lake version 5.0.0-src+611c117 (Lean version 4.36.0)'
-POSTCHECK_SHA256 = '903e9cc56b7edebcece439fb534888d91129e6ffe529b6b4e28a193c93c86fc0'
+POSTCHECK_SHA256 = '4e1d9725d154d3a8aa5494da517697d210cd83755eaa09549e8b0983e6f36b41'
 ALLOWED_AXIOMS = {'propext', 'Classical.choice', 'Quot.sound'}
 CHECK_DECLARATIONS = {'Formalism.FourierDecayAlt.P.PhaseFunctionDerivatives.' + name
                       for name in ('b_pow_sub_one', 'b_root_sep')}

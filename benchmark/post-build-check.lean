@@ -1,4 +1,7 @@
+module
+
 import Lean
+meta import Lean
 import all Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives
 
 example (ω : ℂ) (hω : ‖ω‖ = 1) (i : ℕ) : ‖ω ^ i - 1‖ ≤ i * ‖ω - 1‖ :=
