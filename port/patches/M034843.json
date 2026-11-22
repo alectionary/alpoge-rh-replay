@@ -1,0 +1,7 @@
+{
+ "module": "Development.AbelianVarietyTheory.Proofs.DivisorProofs.HasseJetVanishingMemPowStatement",
+ "source_sha256": "d8ebf01be1f27949cbfded19a61f5d558c2404a3340dd49e225837aed2eebdfa",
+ "lean": "leanprover/lean4:v4.36.0",
+ "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+ "notes": "unchanged"
+}
