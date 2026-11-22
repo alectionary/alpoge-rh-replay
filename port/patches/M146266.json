@@ -1,0 +1,241 @@
+{
+  "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts",
+  "source_sha256": "f31913eef5bae270d5770190fcde8bba66a3a0363bd4cf4e2f8ec78024772d2a",
+  "lean": "leanprover/lean4:v4.36.0",
+  "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+  "notes": "unchanged",
+  "evidence": "https://github.com/rohanarun/alpoge-rh-replay/issues/34654",
+  "import_semantics": {
+    "schema": "M146266-import-semantics-source-preflight-v1",
+    "status": "Proposed source preflight only; not an audit, a finding waiver, or publication approval.",
+    "target": {
+      "module_id": "M146266",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts",
+      "pinned_archive": "8ec38f92ac54b5c91bc07f4f6f88ea61691b7975",
+      "original_source_sha256": "f31913eef5bae270d5770190fcde8bba66a3a0363bd4cf4e2f8ec78024772d2a"
+    },
+    "reviewed_import_snapshot": {
+      "commit": "55b42ecd069a3f3a7a2c70c90b6b1deb2e18cc95",
+      "ledger_sha256": "c4e2032331f0da7fafe9dc6046ca9430e899041f77c1985167c92f5b0ee7ea74",
+      "scope": "Immutable preparation snapshot only; not the unbound future contribution base. Every accepted record, patch and materialized source must be rechecked against that final base.",
+      "project_module_count": 15,
+      "accepted_import_count": 14,
+      "accepted_patch_count": 6,
+      "accepted_imports": [
+        {
+          "module_id": "M145351",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.AdditiveCharacterPsi",
+          "original_source_sha256": "9570811eb6fd4b3147229716dbe5b6d7a67e7d6de342b2f663967260dd9eea92",
+          "record_sha256": "98fed9b95c9cbed9bc22c42cc3ccfd0540a8dd6b68ef394b57fc8ffe770e27c9",
+          "patch_sha256": null,
+          "ported_source_sha256": "9570811eb6fd4b3147229716dbe5b6d7a67e7d6de342b2f663967260dd9eea92",
+          "literal_owner_notes_sha256": "aaa8d3c8d74ad3e8f6b1772aa9c7e0eaa528cb42fc93599ce2f125b00d4c424c",
+          "literal_owner_notes": "unchanged"
+        },
+        {
+          "module_id": "M145372",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.AffineChangeOfVariables",
+          "original_source_sha256": "588fa3342bb5b1c084c67b99ef769816022744fb1d41383da6f2368cc198d541",
+          "record_sha256": "94c483ee1c7c8eab9a81131e57a250a76f0908781ee13824dfd55ff61931453b",
+          "patch_sha256": "080b0ceb641fa69a66360d5059231e58b9ed98ad0fc49b2c043dabec9abbcf5d",
+          "ported_source_sha256": "cad7a402a5ecefc84eb8999948f84e587b00a6cc3e9f0309f81606d3ab888703",
+          "literal_owner_notes_sha256": "8e9d2905f307539036044a38c21c744fa4cfd8ca02ec1b6ec334ab1506cb70f1",
+          "literal_owner_notes": "Proof-only: Provide explicit measurability of the same affine map and translation to the measure-map scalar rule. No exported declaration statements, definitions or instances changed."
+        },
+        {
+          "module_id": "M145556",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.ContinuousInvUpper",
+          "original_source_sha256": "09134b1419472fa1867ffc66bc846a1076a788ab50aef0a21113b09c08891d73",
+          "record_sha256": "320cad233013af8acec4f7a2817abf0d08df320280afa4aad18afc5921f4e5ba",
+          "patch_sha256": "0aa2c41d7650d6bc9a09787df2a5c9cd93e58fe23dfb9bbeea97792192b0c5e8",
+          "ported_source_sha256": "7a847a9108da41b6e33053dca259d870f25f24ebe4944ed9b07192df8f83fc0e",
+          "literal_owner_notes_sha256": "1f1e114b96e730d2e244e20a4479f89a8b488eb23b1edcd48e59635a2f0190c9",
+          "literal_owner_notes": "Proof-only: supply the existing measurability witnesses to Measure.map_smul. Normalize function composition, swaps, identity and tuple eta explicitly in the final skew-product proof, avoiding expensive definitional inference through the matrix entries. The original argument and measures are retained; no diagnostic or resource-limit changes remain. No exported declaration statements, definitions or instances changed."
+        },
+        {
+          "module_id": "M145580",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep",
+          "original_source_sha256": "5359639cd8cb8490826b0444b82bf2756c6df0c8599389f54ec1a8725f0773c7",
+          "record_sha256": "ef8f917d19756cb989dc306223dfe63a2af31045243c6204bee0d3cafb6059b7",
+          "patch_sha256": null,
+          "ported_source_sha256": "5359639cd8cb8490826b0444b82bf2756c6df0c8599389f54ec1a8725f0773c7",
+          "literal_owner_notes_sha256": "aaa8d3c8d74ad3e8f6b1772aa9c7e0eaa528cb42fc93599ce2f125b00d4c424c",
+          "literal_owner_notes": "unchanged"
+        },
+        {
+          "module_id": "M146320",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.FourierUniquenessMirabolic",
+          "original_source_sha256": "97929a340229639fec7d5174a91971ebed3ec1411eb0859a8e21fddb649440ce",
+          "record_sha256": "8dc97fa1df65a286fef71e9810c00fa4212e761cf3c371dd5d0fbce61c163636",
+          "patch_sha256": null,
+          "ported_source_sha256": "97929a340229639fec7d5174a91971ebed3ec1411eb0859a8e21fddb649440ce",
+          "literal_owner_notes_sha256": "aaa8d3c8d74ad3e8f6b1772aa9c7e0eaa528cb42fc93599ce2f125b00d4c424c",
+          "literal_owner_notes": "unchanged"
+        },
+        {
+          "module_id": "M146727",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.OrbitalIntegralConvergesAbs",
+          "original_source_sha256": "efd4cfd08d8a5a8b535b9fcb2d30ba81fb98998ee50c067e5f1bda044987b1e6",
+          "record_sha256": "7169e89e22fbcfa001243736c1e1e65d22b53161488a4b2866af76a6f208db94",
+          "patch_sha256": "45e72c1bb8f0d5322a17c4afa11e199adcdebd61bf47cf467f851f094f03d76f",
+          "ported_source_sha256": "c711e58bab85afa795783799527db9c364c337972281e7938e737dae83cdc042",
+          "literal_owner_notes_sha256": "c531e642fdfcda35d1090b6401de1a74aeb8d58bc9c90a9f0d81171dc944579d",
+          "literal_owner_notes": "Supply established measurability for scaling a measure and explicitly install the finite-coordinate measure instances for associativity. No exported declaration statements, definitions or instances changed."
+        },
+        {
+          "module_id": "M146795",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionCriticalPoints",
+          "original_source_sha256": "4bb48c936aa8952768f8691ffadde31239a39154453ab999cff7295483c5ac5e",
+          "record_sha256": "3db6e2552d789bf531ee4f182f8bcc991c19f4790a81af39d01035f6e4665d8e",
+          "patch_sha256": null,
+          "ported_source_sha256": "4bb48c936aa8952768f8691ffadde31239a39154453ab999cff7295483c5ac5e",
+          "literal_owner_notes_sha256": "aaa8d3c8d74ad3e8f6b1772aa9c7e0eaa528cb42fc93599ce2f125b00d4c424c",
+          "literal_owner_notes": "unchanged"
+        },
+        {
+          "module_id": "M146796",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives",
+          "original_source_sha256": "aa1be1cde81f8e335d28641d75e7cd4a9a218058cfce5063ec5e1325d6051acc",
+          "record_sha256": "b7d0cb7391ccb27bdcf327fbf78d9336e847cf551a7d66b7cf3dafe02573e924",
+          "patch_sha256": "c022be8050c4801e0f20dd93123ee4f0d108d8a24495614f12022f8971558927",
+          "ported_source_sha256": "effb745259cbe6fb0731da75b3eaa464aecde295d93accb1f8edbfe167b7b63b",
+          "literal_owner_notes_sha256": "59ab77864acb777337d95ba35b11544d0d6af171ec2797d4d6e2a2aeff7c12db",
+          "literal_owner_notes": "Proof-only: supply the explicit constant codomain family to contDiff_apply; use the renamed nonnegative finite-product comparison lemmas with the original witnesses; and make continuity constants and component functions explicit to avoid excessive definitional inference. No original declaration statement, hypothesis, definition, instance, import, scope or proof-resource limit is changed. Imported Measure.map references retain their pinned measurable branch: affine, finite-coordinate linear, scaling and coordinate maps are measurable, while generic declarations supply their own measurability or MeasurableEmbedding witnesses. Every imported Measure.prod second factor is s-finite in its own declaration: either an explicit SFinite hypothesis or a concrete finite product of finite NNReal-scaled complex volume. These arguments include zero scalings and empty coordinate sets and borrow no downstream nonzero or finiteness hypothesis. The accepted import records are retained; this contribution documents their imported side conditions."
+        },
+        {
+          "module_id": "M146895",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper",
+          "original_source_sha256": "3c853dc2418447bc39994b136dced76ccf18636cfde720661a7cfd3a40d7046e",
+          "record_sha256": "d6a023a9ea55b6017ddddd0974480d31156469c528af9cb6869bda1328c9b1fe",
+          "patch_sha256": null,
+          "ported_source_sha256": "3c853dc2418447bc39994b136dced76ccf18636cfde720661a7cfd3a40d7046e",
+          "literal_owner_notes_sha256": "aaa8d3c8d74ad3e8f6b1772aa9c7e0eaa528cb42fc93599ce2f125b00d4c424c",
+          "literal_owner_notes": "unchanged"
+        },
+        {
+          "module_id": "M147014",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.StabilizerBlockPoint",
+          "original_source_sha256": "34e85cbeda458acfb27d14ca9ed06a55ad6e1271b360e801ad666e436624af5a",
+          "record_sha256": "4120fd907f59ac04deac3edba0fa6056e3547efee108d62c8738ee384e7a1184",
+          "patch_sha256": null,
+          "ported_source_sha256": "34e85cbeda458acfb27d14ca9ed06a55ad6e1271b360e801ad666e436624af5a",
+          "literal_owner_notes_sha256": "aaa8d3c8d74ad3e8f6b1772aa9c7e0eaa528cb42fc93599ce2f125b00d4c424c",
+          "literal_owner_notes": "unchanged"
+        },
+        {
+          "module_id": "M147019",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.StandardCharacterExists",
+          "original_source_sha256": "2b7e845a3efbd97f99aa68d4dc4f2d295b6efe8778d76c5e8d9aa9942be002d1",
+          "record_sha256": "5adc156c1c286cd8e70d7624b1f0867927f25cbb19b2d11ca1fc85d652ba06eb",
+          "patch_sha256": "3df753f9d8c1528930da390483bf60f16d26590326f44ca366e993c3bec3b574",
+          "ported_source_sha256": "167f5d2d6850c3871092b3521cd0e8457f49e7bdf087553af51c68fa3b297242",
+          "literal_owner_notes_sha256": "9179913134489b71f05ef2b989f6a5295f82a2a2974b6d81a2533beb1075d019",
+          "literal_owner_notes": "Proof-only: Provide explicit measurability of scalar multiplication to the measure-map scalar rule. No exported declaration statements, definitions or instances changed."
+        },
+        {
+          "module_id": "M147155",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.WeakApproximationGL",
+          "original_source_sha256": "15ca138f17b5a41597b9c54553f15635dc35354eb25f5ff9a8535cb59c303354",
+          "record_sha256": "c46ea474712474477f5b4130cb137344640a3b60a57736e4443a88bb36f75a2d",
+          "patch_sha256": null,
+          "ported_source_sha256": "15ca138f17b5a41597b9c54553f15635dc35354eb25f5ff9a8535cb59c303354",
+          "literal_owner_notes_sha256": "aaa8d3c8d74ad3e8f6b1772aa9c7e0eaa528cb42fc93599ce2f125b00d4c424c",
+          "literal_owner_notes": "unchanged"
+        },
+        {
+          "module_id": "M147165",
+          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.WhittakerVanishingImpliesZero",
+          "original_source_sha256": "77cfa9efabd2ae399f205391eb31522af699acbf986631fd7c4194ccc7b9adef",
+          "record_sha256": "3b4a2471e68e37927da0514446d9ea0dd5e5d813ce6b98042ed71ceff67722d7",
+          "patch_sha256": "45d31d58c8ba5e1903928871896626c0f84f50e0bbd577499fe5514a4936bafc",
+          "ported_source_sha256": "f1a26b7807442490d698b7be43fe6827585b7a8b44736de0e380485399559332",
+          "literal_owner_notes_sha256": "a134bc9433c86dc0d85d335b6e89fb3826061fc61ab07c9fc767ab4902886cad",
+          "literal_owner_notes": "Use finite-product inequalities with the original nonnegativity premises and provide the coordinate scalar family to the target differentiation API. Supply the now-implicit coordinate codomain explicitly. No exported declaration statements, definitions or instances changed."
+        },
+        {
+          "module_id": "M147219",
+          "module": "Formalism.HermitianCurvature.StatementG",
+          "original_source_sha256": "d41a30622cc580ec30a006df65d2caf4ec6e632dd28de0947f982b12798c0abb",
+          "record_sha256": "099acb0ff9f0c643baa76bb0fcd216d6f23b82c5ee1f2410ff098c7f3840ade2",
+          "patch_sha256": null,
+          "ported_source_sha256": "d41a30622cc580ec30a006df65d2caf4ec6e632dd28de0947f982b12798c0abb",
+          "literal_owner_notes_sha256": "aaa8d3c8d74ad3e8f6b1772aa9c7e0eaa528cb42fc93599ce2f125b00d4c424c",
+          "literal_owner_notes": "unchanged"
+        }
+      ]
+    },
+    "finite_scalar_and_product_meaning": {
+      "owners": [
+        "M147219",
+        "M145556"
+      ],
+      "coordinate_measure": "mu beta = Real.toNNReal(norm(beta)/(2*pi)) smul complex volume. The NNReal scalar is finite. For nonzero beta the total measure of the complex plane is infinite; no IsFiniteMeasure claim is made.",
+      "products": "muPi is the finite-index Measure.pi of the same mu beta; muBlock, muRed and muXY retain their exact nested products and coordinate order. Complex volume is locally finite and sigma-finite; finite NNReal scaling and finite-index products preserve sigma-finiteness, giving the required SFinite second factors.",
+      "own_instances": "M145556 supplies sigmaFinite_mu, sigmaFinite_muPi and sigmaFinite_muBlock for arbitrary beta and the displayed finite coordinate types. At M147219 data definitions, the same sigma-finite facts are derivable from their own concrete measure expressions; no later nonzero-beta premise is needed.",
+      "zero_and_empty_cases": "mu 0 is zero. A nonempty finite-coordinate product at beta=0 and the unit-mass empty-coordinate product are different cases. Natural exponent zero, empty sums/products, m=0 and zero scalings retain their total defaults."
+    },
+    "declaration_local_conditions": [
+      {
+        "owners": [
+          "M145372",
+          "M145556",
+          "M147019"
+        ],
+        "context": "Affine maps, finite-coordinate matrix actions, translations, scalar actions, shears, coordinate insertions/permutations and their stated compositions.",
+        "condition": "Measurability is established for each actual concrete map in its own canonical spaces. The accepted map_smul proof changes only expose those existing witnesses; map directions, measures and scalar factors remain unchanged. A scaling Jacobian theorem keeps its own nonzero-scale hypothesis; beta remains arbitrary."
+      },
+      {
+        "owners": [
+          "M145556"
+        ],
+        "context": "mp_of_comp",
+        "condition": "Own hF : Measurable F and own hJ : MeasurePreserving J nu mu supply the measurable maps. A later measurable consumer cannot justify an arbitrary F."
+      },
+      {
+        "owners": [
+          "M146727"
+        ],
+        "context": "affine_fibre and integral_affine_fibre",
+        "condition": "Own SFinite nu is the actual product-right-factor premise, alongside own Measurable alpha/gamma and the stated a.e. nonzero alpha condition. No extra SFinite or nonzero-beta assumption is borrowed."
+      },
+      {
+        "owners": [
+          "M146727"
+        ],
+        "context": "integrable_comp_bracket",
+        "condition": "Own MeasurableEmbedding f supplies the map measurability; finite NNReal density constants k/kappa, the existing Haar measure and original degree threshold retain their exact scope. No new finiteness or completeness premise is inferred."
+      },
+      {
+        "owners": [
+          "M147219",
+          "M145556",
+          "M146727"
+        ],
+        "context": "Every concrete nested Measure.prod expression and generated equation, if reported.",
+        "condition": "Identify the exact parenthesized second factor in the actual owned type/body, derive its SFinite property from that declaration\u2019s concrete finite-index sigma-finite coordinate measures, and instantiate product equality there. Do not use a sibling or downstream beta!=0, SFinite, or integrability hypothesis."
+      },
+      {
+        "owners": [
+          "M146266"
+        ],
+        "context": "Generic DB/diff_bound/int_bound versus the three exported amplitude interfaces.",
+        "condition": "Generic helpers retain possibly incomplete target spaces. int_bound has arbitrary measurable space/measure, its own AEStronglyMeasurable f/g and integrable nonnegative majorant; it derives Integrable f/g locally and has no SFinite or CompleteSpace premise. The three exported AmpBoundFar/AmpBoundCrit/AmpLimit interfaces separately retain their own CompleteSpace V assumption."
+      }
+    ],
+    "proposed_generic_certificate": {
+      "namespace": "MeasureSideConditionCertificate",
+      "sha256": "814e69a02d3d8447bfcc92f8b860633c8cbbf2f0e044cf9e2a2ebe9bedc517fa",
+      "project_imports": [],
+      "scope": "Generic map/product certificate only; no BB or M144284 project ancestor is in this fifteen-module closure.",
+      "map_equivalence": "pinnedMap_eq_map_of_aemeasurable applies only under the actual declaration\u2019s own AEMeasurable witness; the old zero branch is explicit in pinnedMap_eq_zero_of_not_aemeasurable.",
+      "product_equivalence": "pinnedNestedProduct_eq_currentProd_of_sfinite applies under the actual right factor\u2019s own SFinite instance. guardedProduct_eq_pinnedNestedProduct separately retains the pinned nested inner and outer old-map branches for arbitrary measures.",
+      "integral_scope": "The generic measure equalities may rewrite the same full total integral for arbitrary target spaces without adding integrability or completeness. guardedIntegral_eq_pinnedNestedIntegral itself is Complex-valued and cannot replace that argument for an arbitrary or incomplete V.",
+      "validation_requirement": "This exact standalone certificate has historical evidence with thirteen owned axiom-checked declarations. Any future candidate still needs a fresh exact-source compile and full owned-declaration axiom check. Historical counts are neither finding limits nor new-case approval."
+    },
+    "notes_and_future_evidence": {
+      "literal_notes_independent": "This metadata is separate from literal notes. The target notes must describe the actual source/patch outcome; unchanged is appropriate only if the target source stays original. Accepted owner notes are retained verbatim above, including unchanged where that is their literal value; metadata does not pretend to add owner annotations.",
+      "accepted_lineage": "The six accepted proof patches and M146796 prior declaration-local note explanations are provenance. They do not establish a semantic-audit result for a future M146266 source.",
+      "actual_evidence_required": "Run both unchanged current-policy auditors on every module in the final exact closure, retain every raw stream/exit code/finding and generated equation, extract each actual owned type/body/origin, and perform declaration-local mathematical and literal-notes review. No actual finding names/counts, future source/issue/base/helper/run or audit outcome are assigned by this proposal."
+    }
+  }
+}
