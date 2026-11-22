@@ -20,15 +20,22 @@
   "profiler": {
     "arguments": [
       "--profile",
-      "-Dprofiler.threshold=100"
+      "-Dprofiler.threshold=100",
+      "-Dtrace.profiler=true",
+      "-Dtrace.profiler.threshold=1000000",
+      "-Dtrace.Elab.definition.value=true",
+      "-Dtrace.profiler.output.pp=true"
     ],
-    "threshold_ms": 100
+    "threshold_ms": 100,
+    "trace_format": "lean-firefox-preprocessed-v48",
+    "trace_max_bytes": 16777216,
+    "trace_output_relative_path": ".profile-diagnostic/declaration-profile.json"
   },
   "required_reviews": {
-    "independent_method": "4b3441149d6a168ec4f83d43b7ad568997650e694704c89619f4ae6fb6ccad99",
-    "root_method": "bd0a0b5ac65f027992554dcd7f7f5037709b2c800c1c226ddc998f580e2844ae"
+    "independent_method": "22fd8400a0cd305a145004aa8ac1c3733e895d9df435463fe29aafcc21152d9b",
+    "root_method": "60efb3e1fd690b7163fdb4c68231a8928b4ceb23384d297c2bb985189fae82fc"
   },
   "schema_version": 1,
-  "status": "Reviewed unchanged-source profiling diagnostic; no comparative, optimization or source PR approval.",
+  "status": "Reviewed unchanged-source named value-elaboration diagnostic; no comparative, optimization or source PR approval.",
   "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts"
 }

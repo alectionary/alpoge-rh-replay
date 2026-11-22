@@ -23,7 +23,23 @@ ORIGINAL_SHA = '91d9392acb58ae737203bc8385f51bb01a13e670cdea47b8c808e31d4e943872
 EXECUTION_REPOSITORY = 'alectionary/alpoge-rh-replay'
 OPTIONS = {'autoImplicit': False, 'relaxedAutoImplicit': False, 'maxSynthPendingDepth': 3,
            'pp.unicode.fun': True, 'maxHeartbeats': 4000000}
-PROFILE_ARGS = ['--profile', '-Dprofiler.threshold=100']
+TRACE_RELATIVE_PATH = '.profile-diagnostic/declaration-profile.json'
+TRACE_MAX_BYTES = 16 * 1024 * 1024
+PROFILE_SPEC = {
+    'arguments': ['--profile', '-Dprofiler.threshold=100', '-Dtrace.profiler=true',
+                  '-Dtrace.profiler.threshold=1000000', '-Dtrace.Elab.definition.value=true',
+                  '-Dtrace.profiler.output.pp=true'],
+    'threshold_ms': 100, 'trace_output_relative_path': TRACE_RELATIVE_PATH,
+    'trace_max_bytes': TRACE_MAX_BYTES, 'trace_format': 'lean-firefox-preprocessed-v48',
+}
+VALUE_LABEL_PREFIX = 'Elab.definition.value: '
+SELECTED_DECLARATIONS = tuple('Formalism.FourierDecayAlt.P.EtaleIntegralityFacts.' + name for name in (
+    'first_cofactor_norm_le', 'remainder_norm_le', 'first_cofactor_derivative_bound',
+    'remainder_derivative_bound', 'card_range_inf_torsion_le_index_pow'))
+
+
+def profile_arguments(workspace):
+    return PROFILE_SPEC['arguments'] + ['-Dtrace.profiler.output=' + str(Path(workspace) / TRACE_RELATIVE_PATH)]
 
 
 def load_core():
@@ -99,8 +115,7 @@ def load_config(path, expected_sha):
     require(config['post_build_driver'] == {'path': 'post-build-check.lean', 'sha256': DRIVER_SHA}, 'Wrong type/axiom driver binding.')
     driver = core.relative_file(path.parent, 'post-build-check.lean').read_bytes()
     require(digest(driver) == DRIVER_SHA, 'Type/axiom driver bytes changed.')
-    require(config['profiler'] == {'arguments': PROFILE_ARGS, 'threshold_ms': 100} and
-            type(config['profiler']['threshold_ms']) is int, 'Profiler arguments/threshold differ.')
+    require(encode(config['profiler']) == encode(PROFILE_SPEC), 'Named profiler spec differs.')
     require(set(config['required_reviews']) == {'root_method', 'independent_method'} and
             all(core.sha(value) for value in config['required_reviews'].values()), 'Method review remains unbound.')
     require(isinstance(config['status'], str), 'Invalid descriptive status.')
@@ -205,10 +220,17 @@ def parse_profile(stdout, stderr, workspace, diagnostic_olean, toolchain_bin):
                 if str(toolchain_bin / 'lean') in tokens:
                     pos = tokens.index(str(toolchain_bin / 'lean'))
                     args = tokens[pos + 1:]
-                    require(len(args) == 8 and args[0] == '--tstack=400000' and args[2] == '--setup' and
-                            args[4:] == PROFILE_ARGS + ['-o', str(diagnostic_olean)], 'Verbose compiler arguments differ.')
-                    require(args[1] in (str(workspace / ('src/' + TARGET.replace('.', '/') + '.lean')),
-                                        'src/' + TARGET.replace('.', '/') + '.lean'), 'Wrong verbose compiler source.')
+                    target_sources = (str(workspace / ('src/' + TARGET.replace('.', '/') + '.lean')),
+                                      'src/' + TARGET.replace('.', '/') + '.lean')
+                    is_target = any(arg in target_sources for arg in args)
+                    is_diagnostic = str(diagnostic_olean) in args
+                    if not is_target and not is_diagnostic:
+                        continue  # Lake may replay dependency build logs; they stay in the raw stream.
+                    require(is_target and is_diagnostic, 'Unexpected target/diagnostic compiler invocation.')
+                    require(len(args) == 4 + len(profile_arguments(workspace)) + 2 and
+                            args[0] == '--tstack=400000' and args[2] == '--setup' and
+                            args[4:] == profile_arguments(workspace) + ['-o', str(diagnostic_olean)], 'Verbose compiler arguments differ.')
+                    require(args[1] in target_sources, 'Wrong verbose compiler source.')
                     require(Path(args[3]).is_absolute() and '..' not in Path(args[3]).parts, 'Unsafe generated setup path.')
                     commands.append({'line': line, 'argv': tokens[pos:]})
             hit = re.fullmatch(r'(.+?) took (' + number + r')(ms|s)', line)
@@ -260,6 +282,224 @@ def setup_project_bindings(setup, workspace, compiled, modules):
     return bindings
 
 
+def source_declarations(source):
+    """A closed-source inventory, not a general Lean parser or namespace filter."""
+    require(digest(source) == ORIGINAL_SHA, 'Declaration mapping requires the exact original source.')
+    blocks, namespace, result = [], [], {}
+    for line_number, line in enumerate(source.decode().splitlines(), 1):
+        text = line.strip()
+        if text.startswith('namespace '):
+            name = text[len('namespace '):]
+            blocks.append(('namespace', name))
+            namespace.append(name)
+        elif re.fullmatch(r'(?:@\[[^]]*\]\s+)?(?:public\s+)?(?:noncomputable\s+)?section(?:\s+\w+)?', text):
+            name = text.split('section', 1)[1].strip()
+            blocks.append(('section', name))
+        elif re.fullmatch(r'end(?:\s+[A-Za-z0-9_.]+)?', text):
+            require(bool(blocks), 'Unmatched source scope.')
+            kind, name = blocks.pop()
+            require(text == 'end' or text[4:] == name, 'Source scope mapping differs.')
+            if kind == 'namespace':
+                namespace.pop()
+        match = re.match(r'^(?:(?:noncomputable|private|protected)\s+)?(theorem|lemma|def)\s+(\S+)', text)
+        if match:
+            kind, name = match.groups()
+            full_name = name if name.startswith('Formalism.') else '.'.join(namespace + [name])
+            require(full_name not in result, 'Duplicate mapped source declaration.')
+            result[full_name] = {'kind': kind, 'line': line_number}
+    require(len(result) == 136 and sum(row['kind'] in ('theorem', 'lemma') for row in result.values()) == 125,
+            'Original declaration inventory differs.')
+    return result
+
+
+def parse_declaration_trace(raw, source):
+    """Read the exact611c exporter, attributing positive sample weights by stack ancestry."""
+    require(isinstance(raw, bytes) and 0 < len(raw) <= TRACE_MAX_BYTES, 'Named trace exceeds the bounded byte limit.')
+    data = strict_json(raw)
+    owned = source_declarations(source)
+    categories = [{'name': name, 'color': color, 'subcategories': []} for name, color in (
+        ('Other', 'gray'), ('Elab.async', 'gray'), ('Elab.block', 'brown'),
+        ('Elab', 'red'), ('Meta', 'yellow'), ('Kernel', 'green'))]
+    require(set(data) == {'meta', 'libs', 'threads'} and data['libs'] == [], 'Unexpected exporter envelope.')
+    meta = data['meta']
+    require(set(meta) == {'interval', 'startTime', 'categories', 'processType', 'product',
+                          'preprocessedProfileVersion', 'markerSchema', 'sampleUnits'}, 'Unexpected exporter metadata.')
+    require(meta['categories'] == categories and meta['product'] == 'lean' and
+            type(meta['processType']) is int and meta['processType'] == 0 and
+            type(meta['preprocessedProfileVersion']) is int and meta['preprocessedProfileVersion'] == 48 and
+            meta['markerSchema'] == [] and meta['sampleUnits'] == {'time': 'ms', 'eventDelay': 'ms', 'threadCPUDelta': 'µs'},
+            'Wrong exporter version/units/categories.')
+
+    def number(value):
+        require(type(value) in (int, float) and math.isfinite(value) and value >= 0, 'Invalid negative/nonfinite trace number.')
+        return value
+
+    require(number(meta['interval']) == 0, 'Unexpected tracing sample interval.')
+    number(meta['startTime'])
+
+    def index(value, bound):
+        require(type(value) is int and 0 <= value < bound, 'Invalid trace table index.')
+
+    def table(thread, name, columns, empty_columns=()):
+        value = thread[name]
+        require(isinstance(value, dict) and set(value) == {'length', *columns, *empty_columns}, 'Unexpected trace table columns: ' + name)
+        length = value['length']
+        require(type(length) is int and 0 <= length <= 100000, 'Trace table length exceeds the bound.')
+        require(all(isinstance(value[key], list) and len(value[key]) == length for key in columns), 'Trace column length differs: ' + name)
+        require(all(value[key] == [] for key in empty_columns), 'Exporter placeholder columns must be empty.')
+        return value
+
+    threads = data['threads']
+    require(isinstance(threads, list) and 0 < len(threads) <= 128, 'Missing/excess trace threads.')
+    output, identities, observed, positive_known = [], set(), set(), set()
+    for ordinal, thread in enumerate(threads):
+        require(set(thread) == {'name', 'processType', 'isMainThread', 'samples', 'markers', 'stackTable', 'frameTable',
+                                'resourceTable', 'nativeSymbols', 'stringArray', 'funcTable'}, 'Unexpected thread fields.')
+        require(isinstance(thread['name'], str) and thread['name'] and type(thread['isMainThread']) is bool and
+                thread['processType'] == 'default', 'Wrong thread identity.')
+        if thread['isMainThread']:
+            require(thread['name'] == TARGET, 'Named trace main module identity differs.')
+            tid = 0
+        else:
+            require(re.fullmatch('[1-9][0-9]*', thread['name']) is not None, 'Invalid exported worker identity.')
+            tid = int(thread['name'])
+        require(tid not in identities, 'Duplicate exported thread identity.')
+        identities.add(tid)
+        require(thread['markers'] == {'data': [], 'name': [], 'length': 0} and
+                thread['resourceTable'] == {'type': [], 'length': 0} and thread['nativeSymbols'] == {'type': [], 'length': 0},
+                'Unexpected exporter resource/marker data.')
+        require(all(type(thread[key]['length']) is int for key in ('markers', 'resourceTable', 'nativeSymbols')),
+                'Invalid resource/marker length type.')
+        strings = thread['stringArray']
+        require(isinstance(strings, list) and len(strings) <= 100000 and all(isinstance(value, str) for value in strings), 'Invalid trace strings.')
+        functions = table(thread, 'funcTable', ['name', 'resource', 'fileName', 'lineNumber', 'columnNumber'], ['isJS', 'relevantForJS'])
+        frames = table(thread, 'frameTable', ['address', 'inlineDepth', 'category', 'subcategory', 'func', 'nativeSymbol',
+                                             'innerWindowID', 'implementation', 'line', 'column'])
+        require(frames['length'] == functions['length'] and frames['func'] == list(range(functions['length'])),
+                'Pinned exporter function/frame identity alignment differs.')
+        stacks = table(thread, 'stackTable', ['frame', 'category', 'subcategory', 'prefix'])
+        samples = thread['samples']
+        require(samples.get('weightType') == 'tracing-ms', 'Wrong sample weighting units.')
+        sample_columns = ['stack', 'time', 'weight', 'threadCPUDelta']
+        require(set(samples) == {'length', 'weightType', *sample_columns} and type(samples['length']) is int and
+                0 <= samples['length'] <= 200000 and
+                all(isinstance(samples[key], list) and len(samples[key]) == samples['length'] for key in sample_columns),
+                'Invalid sample table dimensions.')
+        named = {}
+        for function_index in range(functions['length']):
+            string_index = functions['name'][function_index]
+            index(string_index, len(strings))
+            require(type(functions['resource'][function_index]) is int and functions['resource'][function_index] == -1 and
+                    all(functions[key][function_index] is None for key in ('fileName', 'lineNumber', 'columnNumber')),
+                    'Unexpected function resources/source-position data.')
+            label = strings[string_index]
+            if label.startswith(VALUE_LABEL_PREFIX):
+                name = label[len(VALUE_LABEL_PREFIX):]
+                require(bool(name), 'Empty named-value label.')
+                if name not in named:
+                    named[name] = {'name': name, 'label': label, 'function_indexes': [], 'source_owned': name in owned,
+                                   'source_kind': owned[name]['kind'] if name in owned else None,
+                                   'source_header_line': owned[name]['line'] if name in owned else None,
+                                   'inclusive_weight_ms': 0.0, 'sample_memberships': 0, 'positive_weight_samples': 0}
+                named[name]['function_indexes'].append(function_index)
+                observed.add(name)
+        for frame_index in range(frames['length']):
+            index(frames['func'][frame_index], functions['length'])
+            category = frames['category'][frame_index]
+            if category is not None:
+                index(category, len(categories))
+            require(type(frames['address'][frame_index]) is int and frames['address'][frame_index] == -1 and
+                    type(frames['inlineDepth'][frame_index]) is int and frames['inlineDepth'][frame_index] == 0 and
+                    all(frames[key][frame_index] is None for key in ('subcategory', 'nativeSymbol', 'innerWindowID', 'implementation', 'line', 'column')),
+                    'Unexpected exporter frame metadata.')
+        for stack_index in range(stacks['length']):
+            index(stacks['frame'][stack_index], frames['length'])
+            index(stacks['category'][stack_index], len(categories))
+            require(type(stacks['subcategory'][stack_index]) is int and stacks['subcategory'][stack_index] == 0,
+                    'Unexpected stack subcategory.')
+            if stacks['prefix'][stack_index] is not None:
+                index(stacks['prefix'][stack_index], stacks['length'])
+        # Resolve all chains iteratively, including unused stacks; cycles cannot hide.
+        ancestry, depths, state = {}, {}, [0] * stacks['length']
+        for stack_index in range(stacks['length']):
+            chain, current = [], stack_index
+            while current is not None and current not in ancestry:
+                require(state[current] == 0, 'Cycle in trace stack ancestry.')
+                state[current] = 1
+                chain.append(current)
+                require(len(chain) <= 2048, 'Trace ancestry exceeds the bounded depth.')
+                current = stacks['prefix'][current]
+            while chain:
+                current = chain.pop()
+                parent = stacks['prefix'][current]
+                names = ancestry[parent] if parent is not None else frozenset()
+                depth = 1 + (depths[parent] if parent is not None else 0)
+                require(depth <= 2048, 'Trace ancestry exceeds the bounded depth.')
+                function_index = frames['func'][stacks['frame'][current]]
+                label = strings[functions['name'][function_index]]
+                if label.startswith(VALUE_LABEL_PREFIX):
+                    names = names | {label[len(VALUE_LABEL_PREFIX):]}
+                ancestry[current], depths[current], state[current] = names, depth, 2
+        total, unattributed, positive_samples = 0.0, 0.0, 0
+        for sample_index in range(samples['length']):
+            stack_index = samples['stack'][sample_index]
+            index(stack_index, stacks['length'])
+            number(samples['time'][sample_index])  # Not globally monotone: zero-weight root gaps may overlap.
+            weight = number(samples['weight'][sample_index])
+            number(samples['threadCPUDelta'][sample_index])  # Synthetic elapsed microseconds, never CPU usage.
+            names = ancestry[stack_index]
+            if weight > 0:
+                total += weight
+                positive_samples += 1
+                if not names:
+                    unattributed += weight
+            for name in names:  # Set membership counts a repeated named ancestor only once per sample.
+                row = named[name]
+                row['sample_memberships'] += 1
+                if weight > 0:
+                    row['inclusive_weight_ms'] += weight
+                    row['positive_weight_samples'] += 1
+                    if name in owned:
+                        positive_known.add(name)
+        require(math.isfinite(total) and math.isfinite(unattributed) and
+                all(math.isfinite(row['inclusive_weight_ms']) for row in named.values()), 'Trace duration aggregate overflow.')
+        output.append({'thread_index': ordinal, 'thread_id': tid, 'name': thread['name'], 'is_main_thread': thread['isMainThread'],
+                       'sample_count': samples['length'], 'positive_weight_samples': positive_samples,
+                       'total_positive_weight_ms': total, 'unattributed_positive_weight_ms': unattributed,
+                       'named_value_rows': [named[name] for name in sorted(named)]})
+    require(0 in identities, 'Named trace is missing its original-module main thread.')
+    require(bool(positive_known), 'No positive source-owned named value attribution.')
+    return {'schema': 'lean611c-named-value-attribution-v1', 'source_sha256': ORIGINAL_SHA, 'source_declaration_count': len(owned),
+            'units': 'milliseconds', 'threads': output, 'observed_named_values': sorted(observed),
+            'known_source_positive_name_count': len(positive_known),
+            'selected_declaration_coverage': [{'name': name, 'source_header_line': owned[name]['line'], 'named_frame_present': name in observed,
+                                                'positive_weight_present': name in positive_known} for name in SELECTED_DECLARATIONS],
+            'scope': 'Inclusive instrumented value-elaboration weights by named ancestry within each exported thread. Rows may overlap; do not sum across names/threads. Counts are sample memberships, never invocations. Static source header lines are not timing positions; unknown/private/generated names are retained unmapped. No total declaration/kernel/codegen/memory/comparative-speed claim.'}
+
+
+def capture_declaration_trace(workspace, output, started_ns):
+    path = core.regular(workspace / TRACE_RELATIVE_PATH)
+    before = path.stat()
+    require(0 < before.st_size <= TRACE_MAX_BYTES and before.st_mtime_ns >= started_ns, 'Missing/oversized/stale declaration trace.')
+    raw = path.read_bytes()
+    after = path.stat()
+    require((before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns) and len(raw) == before.st_size,
+            'Declaration trace changed during capture.')
+    retained = output / 'declaration-profile.json'
+    if retained.exists():
+        require(core.regular(retained).read_bytes() == raw, 'Retained declaration trace differs.')
+    else:
+        write_new(retained, raw)
+    return {'path': 'profile/declaration-profile.json', 'bytes': len(raw), 'sha256': digest(raw), 'mtime_ns': before.st_mtime_ns}
+
+
+def verify_declaration_trace(workspace, descriptor):
+    path = core.regular(workspace / TRACE_RELATIVE_PATH)
+    info = path.stat()
+    require(info.st_size == descriptor['bytes'] and info.st_mtime_ns == descriptor['mtime_ns'] and
+            digest(path.read_bytes()) == descriptor['sha256'], 'Original declaration trace changed across overlay/postcheck.')
+
+
 def profile_module(workspace, output, manifest, expected, packages, compiled, env, toolchain_bin, budget):
     output.mkdir()
     diagnostic = core.path_checked(workspace / '.profile-diagnostic', missing=True)
@@ -270,7 +510,7 @@ def profile_module(workspace, output, manifest, expected, packages, compiled, en
     olean.parent.mkdir(parents=True)
     verify_seals(workspace, manifest, expected, packages, compiled, env, budget)
     require(not list(library.rglob('*.*')), 'Diagnostic library was not empty.')
-    command = core.sandbox_prefix(workspace) + ['lake', '-v', 'lean', manifest['modules'][TARGET]['path'], '--'] + PROFILE_ARGS + ['-o', str(olean)]
+    command = core.sandbox_prefix(workspace) + ['lake', '-v', 'lean', manifest['modules'][TARGET]['path'], '--'] + profile_arguments(workspace) + ['-o', str(olean)]
     result = {'status': 'preparing', 'command': command, 'environment': env, 'diagnostic_library': str(library),
               'start_ns': time.time_ns(), 'publication_approved': False, 'full_proof_verified': False}
     started = time.monotonic()
@@ -279,15 +519,24 @@ def profile_module(workspace, output, manifest, expected, packages, compiled, en
             process = subprocess.run(command, cwd=workspace, env=env, stdout=stdout, stderr=stderr,
                                      check=False, timeout=core.timeout_for(budget, 300))
         result.update(exit_code=process.returncode, monotonic_wall_seconds=time.monotonic() - started)
+        result['declaration_trace'] = capture_declaration_trace(workspace, output, result['start_ns'])
         require(process.returncode == 0, 'Actual profile command failed.')
         (raw, setup), compiler, stats = parse_profile((output / 'stdout.log').read_bytes(), (output / 'stderr.log').read_bytes(),
                                                     workspace, olean, toolchain_bin)
         write_new(output / 'module-setup.json', raw)
         result['module_setup'] = {'path': 'profile/module-setup.json', 'sha256': digest(raw), 'bytes': len(raw)}
         result.update(verbose_compiler_line=compiler['line'], compiler_argv=compiler['argv'], profiler_statistics=stats)
+        raw_trace = (output / 'declaration-profile.json').read_bytes()
+        summary = parse_declaration_trace(raw_trace, core.relative_file(workspace, manifest['modules'][TARGET]['path']).read_bytes())
+        require(summary['known_source_positive_name_count'] > 0, 'No positive source-owned named value attribution.')
+        summary_bytes = encode(summary)
+        write_new(output / 'declaration-summary.json', summary_bytes)
+        result['declaration_summary'] = {'path': 'profile/declaration-summary.json', 'bytes': len(summary_bytes), 'sha256': digest(summary_bytes)}
+        result['named_value_summary'] = summary
         result['setup_project_bindings'] = setup_project_bindings(setup, workspace, compiled, graph(manifest))
         result['fresh_artifacts'] = diagnostic_artifacts(workspace, library, result['start_ns'])
         verify_seals(workspace, manifest, expected, packages, compiled, env, budget)
+        verify_declaration_trace(workspace, result['declaration_trace'])
         result['status'] = 'completed'
     except Exception as error:
         result.update(status='failed', error_type=type(error).__name__, error=str(error))
@@ -296,7 +545,16 @@ def profile_module(workspace, output, manifest, expected, packages, compiled, en
         result.setdefault('monotonic_wall_seconds', time.monotonic() - started)
         result['controller_interval_seconds'] = time.monotonic() - started
         result['wall_scope'] = 'Instrumented subprocess interval; parsing/seal overhead is separate, no comparative inference.'
-        result['retained_logs'] = descriptors(output, ['stdout.log', 'stderr.log', 'module-setup.json'])
+        if 'declaration_trace' not in result:
+            try:
+                (workspace / TRACE_RELATIVE_PATH).lstat()
+                result['declaration_trace'] = capture_declaration_trace(workspace, output, result['start_ns'])
+            except FileNotFoundError:
+                pass
+            except Exception as error:
+                result['trace_capture_error'] = str(error)
+        result['retained_logs'] = descriptors(output, ['stdout.log', 'stderr.log', 'module-setup.json',
+                                                       'declaration-profile.json', 'declaration-summary.json'])
         (output / 'result.json').write_bytes(encode(result))
     return result
 
@@ -498,10 +756,12 @@ def run(config_path, config_sha, workspace, output):
         write_new(output / 'overlay-artifacts.json', encode(overlay))
         receipt['overlay_artifacts_sha256'] = profile['overlay_artifacts_sha256'] = digest(encode(overlay))
         (output / 'profile/result.json').write_bytes(encode(profile))
+        verify_declaration_trace(workspace, profile['declaration_trace'])
         receipt['post_check'] = post_check_profile(workspace, output / 'post-check', driver, manifest, expected, packages,
                                                   compiled, env, toolchain_bin, library, profile['fresh_artifacts'], overlay, budget)
         verify_seals(workspace, manifest, expected, packages, compiled, env, budget)
         verify_library(workspace, library, profile['fresh_artifacts'], overlay)
+        verify_declaration_trace(workspace, profile['declaration_trace'])
         receipt['status'] = 'completed'
     except Exception as error:
         receipt.update(status='failed', error_type=type(error).__name__, error=str(error))
