@@ -1,0 +1,7 @@
+{
+ "module": "Development.WeilBound.ThetaLifts.Reductions.MetaDef",
+ "source_sha256": "587b2614d108eb214e680999a29c0c2fe52120182505ebc315fc017300e75b23",
+ "lean": "leanprover/lean4:v4.36.0",
+ "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+ "notes": "unchanged"
+}
