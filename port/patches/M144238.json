@@ -3,6 +3,6 @@
   "source_sha256": "e4ef8aca1d4b5b1999457d3f179bd6a4a9d248b900e11792606ab231c67d7301",
   "lean": "leanprover/lean4:v4.36.0",
   "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
-  "notes": "unchanged",
+  "notes": "Proof-only API compatibility: replace four references to the removed Polynomial.eval_finset_sum alias with Polynomial.eval_finsetSum in eval_PP and polynomial_evaluation_holds_alt, including their fallback branches. At replay Mathlib 0df444a360eaa60ab8c11dca51a86af692955474 the former is literally an alias of the latter. The finite-sum evaluation identity is unchanged over every semiring; all original statements, hypotheses, data definitions, imports, scopes and resource settings are preserved, including empty sums, zero exponent bases, trivial coefficient rings and positive characteristic.",
   "evidence": "https://github.com/rohanarun/alpoge-rh-replay/issues/34407"
 }
