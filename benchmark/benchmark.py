@@ -17,16 +17,19 @@ import subprocess
 import time
 
 ORDER = 'ABBAAB'
-MANIFEST_SHA256 = 'a3145abc382449f41936adebab0188b258641e3ac53923f8750db6b4af2ef288'
-TARGET = 'Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives'
-ADDED_IMPORT = 'Formalism.HermitianCurvature.HermitianCurvatureProofs.WhittakerVanishingImpliesZero'
+MANIFEST_SHA256 = '58347cd39be240ce4e3daf899d321c918959600232455b863ce6460a8d21d8a6'
+TARGET = 'Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep'
+ADDITIONAL_PRIVATE_IMPORTS = ()
+BASELINE_TARGET_SHA256 = 'f6dab9f2b1d3edef227b22df3f36b50338efb6b387c79b437c97ec293f1eadc4'
+CANDIDATE_SHA256 = 'e751d605ff09547f8cc4638ee410dc302e494a5d83d21d07777f4e019999a8b8'
+CANDIDATE_PATCH_SHA256 = '6bfa344307c5c16155d77a4e7ffd5bf78c82c4d2d73ccb243bf5a3f26e0e379d'
 BASELINE = 'c7791603122c0328f79e49f6be5d7d4402effc53'
 LEAN = 'Lean (version 4.36.0, x86_64-unknown-linux-gnu, commit 611c117bfaf7b7ae1cfcf246ce6fba31e8f509e9, Release)'
 LAKE = 'Lake version 5.0.0-src+611c117 (Lean version 4.36.0)'
-POSTCHECK_SHA256 = '4e1d9725d154d3a8aa5494da517697d210cd83755eaa09549e8b0983e6f36b41'
+POSTCHECK_SHA256 = 'c110c6df62e78877786eb47f7297ae811d363405dd3acf4e92e836ae1d7b2a4c'
 ALLOWED_AXIOMS = {'propext', 'Classical.choice', 'Quot.sound'}
-CHECK_DECLARATIONS = {'Formalism.FourierDecayAlt.P.PhaseFunctionDerivatives.' + name
-                      for name in ('b_pow_sub_one', 'b_root_sep')}
+CHECK_DECLARATIONS = {'Formalism.FourierDecayAlt.P.CuspidalIrreducibleSubrep.' + name
+                      for name in ('geom', 'sum_eq_geoS')}
 COMPILED_SUFFIXES = ('.olean', '.olean.private', '.olean.server', '.ilean', '.ir', '.ir.sig',
                      '.so', '.a', '.o', '.c', '.bc', '.ll')
 PINNED_FILES = {
@@ -168,7 +171,7 @@ def load_config(path, expected_sha):
     manifest_bytes = relative_file(path.parent, config['manifest']['path']).read_bytes()
     require(config['manifest']['sha256'] == MANIFEST_SHA256 and digest(manifest_bytes) == MANIFEST_SHA256, 'Manifest digest differs.')
     manifest = json.loads(manifest_bytes)
-    require(manifest['source_commit'] == BASELINE and manifest['target'] == TARGET and len(manifest['modules']) == 12, 'Wrong source closure.')
+    require(manifest['source_commit'] == BASELINE and manifest['target'] == TARGET and len(manifest['modules']) == 6, 'Wrong source closure.')
     require(manifest['config_files'] == PINNED_FILES, 'Canonical config pins differ.')
     modules = manifest['modules']
     require(all(row['path'] == 'src/' + mid.replace('.', '/') + '.lean' and sha(row['sha256']) for mid, row in modules.items()), 'Invalid module manifest.')
@@ -179,16 +182,16 @@ def load_config(path, expected_sha):
         if mid not in seen:
             seen.add(mid)
             pending.extend(modules[mid]['project_imports'])
-    require(seen <= set(modules) and len(seen) == 11, 'Baseline closure differs.')
-    require(set(modules) - seen == {ADDED_IMPORT}, 'Pinned union differs.')
+    require(seen == set(modules) and len(seen) == 6, 'Baseline closure differs.')
+    require(modules[TARGET]['sha256'] == BASELINE_TARGET_SHA256, 'Wrong geometric-resolvent baseline source.')
     candidate = config['candidate']
-    require(sha(candidate['source_sha256']) and sha(candidate['patch_sha256']), 'Candidate remains unbound.')
+    require(candidate['source_sha256'] == CANDIDATE_SHA256 and candidate['patch_sha256'] == CANDIDATE_PATCH_SHA256, 'Candidate remains unbound or differs from this fixed geometric-resolvent prototype.')
     data = relative_file(path.parent, candidate['source_path']).read_bytes()
     patch = relative_file(path.parent, candidate['patch_path']).read_bytes()
     require(digest(data) == candidate['source_sha256'] and digest(patch) == candidate['patch_sha256'], 'Candidate/patch bytes differ.')
-    require(candidate['additional_private_imports'] == [ADDED_IMPORT], 'Private import allowance remains unbound or differs.')
+    require(candidate['additional_private_imports'] == list(ADDITIONAL_PRIVATE_IMPORTS), 'Private import allowance remains unbound or differs.')
     graphs = comparison_graphs(manifest, config['target_module'], data, candidate['additional_private_imports'])
-    require(set(graphs['union']) == set(modules) and len(graphs['candidate']) == 12, 'Candidate union differs.')
+    require(set(graphs['union']) == set(modules) and graphs['baseline'] == graphs['candidate'] and len(graphs['candidate']) == 6, 'Candidate union differs.')
     driver = relative_file(path.parent, config['post_build_driver']['path']).read_bytes()
     require(config['post_build_driver']['sha256'] == POSTCHECK_SHA256 and digest(driver) == POSTCHECK_SHA256, 'Post-build driver differs.')
     return config, manifest, data, patch, raw
@@ -517,7 +520,7 @@ def run(config_path, config_sha, workspace, output):
         require(setup.returncode == 0, 'Official Mathlib cache setup failed.')
         packages = package_identity(workspace, env, budget)
         input_seal(workspace, expected)
-        # The one baseline warm-up builds the exact12-source union, including the added private dependency.
+        # The one baseline warm-up builds the unchanged exact six-source union; no import is added.
         warm_dir = output / 'warm-baseline'
         # Warm-up legitimately creates project imports, so only its execution/log
         # retention is shared with measured trials; imported seals start afterward.

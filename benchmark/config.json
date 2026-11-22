@@ -4,32 +4,30 @@
     "repository": "leanprover-community/riemann-hypothesis"
   },
   "candidate": {
-    "additional_private_imports": [
-      "Formalism.HermitianCurvature.HermitianCurvatureProofs.WhittakerVanishingImpliesZero"
-    ],
+    "additional_private_imports": [],
     "patch_path": "candidate.patch",
-    "patch_sha256": "8c09080531e7b6ea98ab1f0cac60affba2ebf20b724115619cecc98f7a7f9e33",
+    "patch_sha256": "6bfa344307c5c16155d77a4e7ffd5bf78c82c4d2d73ccb243bf5a3f26e0e379d",
     "source_path": "candidate.lean",
-    "source_sha256": "7ff7b9d54ee482fe93a0c8064f5b79faf5f6e00ea97ae7985e178c66c3c18ee9"
+    "source_sha256": "e751d605ff09547f8cc4638ee410dc302e494a5d83d21d07777f4e019999a8b8"
   },
   "comparison_mode": "baseline_closure_plus_target_patch",
   "execution_repository": "alectionary/alpoge-rh-replay",
   "manifest": {
     "path": "source-manifest.json",
-    "sha256": "a3145abc382449f41936adebab0188b258641e3ac53923f8750db6b4af2ef288"
+    "sha256": "58347cd39be240ce4e3daf899d321c918959600232455b863ce6460a8d21d8a6"
   },
   "order": "ABBAAB",
   "post_build_driver": {
     "path": "post-build-check.lean",
-    "sha256": "4e1d9725d154d3a8aa5494da517697d210cd83755eaa09549e8b0983e6f36b41"
+    "sha256": "c110c6df62e78877786eb47f7297ae811d363405dd3acf4e92e836ae1d7b2a4c"
   },
   "required_reviews": {
-    "independent_candidate": "7995575273dbd47462488aa819d34f36fce8386856d1323ca2094d3638cd24fa",
-    "independent_method": "55997692a024960d029b35e5fe4c657c235413c31b68037a34f111a9c5c36d38",
-    "root_candidate": "bad9358d68e8b1d90e6f5d2d8817c222974ff97e0b1f20aaeee3d406c1b005d5",
-    "root_method": "604b640d5cc12a10bb7eb78dd3046d2f9352e3366738ddec480d7d1241916adf"
+    "independent_candidate": "676eb973b741373f6f6a3d5502e7cd0847f2d4b011c74d1564b0cabd3911931d",
+    "independent_method": "045dc5ba7f5fe331339c39680df05579184cc5d954e0b3ff80ef8acdd5a7f896",
+    "root_candidate": "24daae49e38bee4bafd283fd3c59491c03c3a3706a6ae27c801932b2cce78921",
+    "root_method": "8aa1c1f46ea932c1cedb99a49df74f704d4193a454bf502ece442db8331fdad5"
   },
   "schema_version": 1,
-  "status": "Reviewed module-aware diagnostic experiment; prior partial original build retained separately, no comparison assigned and no samples reused.",
-  "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives"
+  "status": "Reviewed fixed six-source two-proof matrix experiment; original statements/imports/options preserved, candidate compilation and paired measurements pending.",
+  "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep"
 }

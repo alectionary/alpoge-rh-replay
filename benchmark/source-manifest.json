@@ -39,23 +39,6 @@
       ],
       "sha256": "ec10474818d1dfa317ec9b4ece5171932f28f388c18b591dd05a30884733b00d"
     },
-    "Formalism.HermitianCurvature.HermitianCurvatureProofs.ContinuousInvUpper": {
-      "bytes": 4646,
-      "import_forms": [
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.StatementG",
-          "public": true
-        }
-      ],
-      "lines": 119,
-      "other_imports": [],
-      "path": "src/Formalism/HermitianCurvature/HermitianCurvatureProofs/ContinuousInvUpper.lean",
-      "project_imports": [
-        "Formalism.HermitianCurvature.StatementG"
-      ],
-      "sha256": "3373809ca7995670ac31105e5354cc32157baa862d662f79a791b8c870a3ed1e"
-    },
     "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep": {
       "bytes": 12041,
       "import_forms": [
@@ -84,47 +67,6 @@
         "Formalism.HermitianCurvature.HermitianCurvatureProofs.OrbitalIntegralConvergesAbs"
       ],
       "sha256": "f6dab9f2b1d3edef227b22df3f36b50338efb6b387c79b437c97ec293f1eadc4"
-    },
-    "Formalism.HermitianCurvature.HermitianCurvatureProofs.FourierUniquenessMirabolic": {
-      "bytes": 10548,
-      "import_forms": [
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.StatementG",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.AdditiveCharacterPsi",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.StabilizerBlockPoint",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.ContinuousInvUpper",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper",
-          "public": true
-        }
-      ],
-      "lines": 210,
-      "other_imports": [],
-      "path": "src/Formalism/HermitianCurvature/HermitianCurvatureProofs/FourierUniquenessMirabolic.lean",
-      "project_imports": [
-        "Formalism.HermitianCurvature.StatementG",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.AdditiveCharacterPsi",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.StabilizerBlockPoint",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.ContinuousInvUpper",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper"
-      ],
-      "sha256": "c0e0a8a68d85ba2afebba2bbace8dd846d910d17199cc4fc6970338ccfa6eeab"
     },
     "Formalism.HermitianCurvature.HermitianCurvatureProofs.OrbitalIntegralConvergesAbs": {
       "bytes": 36644,
@@ -178,104 +120,6 @@
       ],
       "sha256": "7ef58d6754ac96d3f831b189d5b69f8627c50d451bdaf4febbb3d398edc67009"
     },
-    "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives": {
-      "bytes": 37488,
-      "import_forms": [
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.StatementG",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionCriticalPoints",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.OrbitalIntegralConvergesAbs",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.FourierUniquenessMirabolic",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep",
-          "public": true
-        }
-      ],
-      "lines": 714,
-      "other_imports": [],
-      "path": "src/Formalism/HermitianCurvature/HermitianCurvatureProofs/PhaseFunctionDerivatives.lean",
-      "project_imports": [
-        "Formalism.HermitianCurvature.StatementG",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionCriticalPoints",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.OrbitalIntegralConvergesAbs",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.FourierUniquenessMirabolic",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep"
-      ],
-      "sha256": "649fa2f2e244b20dc08ec3cff7adbd4663057adde6ecef89d9f331871139e100"
-    },
-    "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper": {
-      "bytes": 9621,
-      "import_forms": [
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.StatementG",
-          "public": true
-        }
-      ],
-      "lines": 207,
-      "other_imports": [],
-      "path": "src/Formalism/HermitianCurvature/HermitianCurvatureProofs/RemainderNormLeStrictUpper.lean",
-      "project_imports": [
-        "Formalism.HermitianCurvature.StatementG"
-      ],
-      "sha256": "7eb64dd9f9cca1e1d47442fd84558c445db603c89cae5ba27ff540681bf63e3b"
-    },
-    "Formalism.HermitianCurvature.HermitianCurvatureProofs.StabilizerBlockPoint": {
-      "bytes": 3116,
-      "import_forms": [
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.StatementG",
-          "public": true
-        }
-      ],
-      "lines": 75,
-      "other_imports": [],
-      "path": "src/Formalism/HermitianCurvature/HermitianCurvatureProofs/StabilizerBlockPoint.lean",
-      "project_imports": [
-        "Formalism.HermitianCurvature.StatementG"
-      ],
-      "sha256": "af156e904bae693de43d7d5f3b826c54ecbd86330dac10a090995150c98c0eff"
-    },
-    "Formalism.HermitianCurvature.HermitianCurvatureProofs.WhittakerVanishingImpliesZero": {
-      "bytes": 24801,
-      "import_forms": [
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.StatementG",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper",
-          "public": true
-        }
-      ],
-      "lines": 469,
-      "other_imports": [],
-      "path": "src/Formalism/HermitianCurvature/HermitianCurvatureProofs/WhittakerVanishingImpliesZero.lean",
-      "project_imports": [
-        "Formalism.HermitianCurvature.StatementG",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper"
-      ],
-      "sha256": "87df976011637332fb08d6ed3745d127a71e6e2e9aa384267a83e2c040524545"
-    },
     "Formalism.HermitianCurvature.StatementG": {
       "bytes": 37385,
       "import_forms": [
@@ -295,7 +139,7 @@
     }
   },
   "schema_version": 1,
-  "scope": "Pinned12-source union:11-module baseline target closure plus already-existing Whittaker private dependency. Source inspection only, no proof approval.",
+  "scope": "Pinned six-source unchanged closure for geometric-resolvent nilpotence reuse; baseline and candidate have the same three direct imports. Source inspection only, no build or proof approval.",
   "source_commit": "c7791603122c0328f79e49f6be5d7d4402effc53",
-  "target": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives"
+  "target": "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep"
 }
