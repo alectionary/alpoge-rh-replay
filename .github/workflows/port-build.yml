@@ -351,8 +351,8 @@ jobs:
               | .defnInfo d => some d.value
               | .opaqueInfo d => some d.value
               | _ => none
-            liftIO <| IO.FS.writeFile (directory / "type.expr.txt") (typeExpr ++ "\n")
-            liftIO <| IO.FS.writeFile (directory / "type.pretty.txt") (typePretty ++ "\n")
+            Lean.Elab.Command.liftIO <| IO.FS.writeFile (directory / "type.expr.txt") (typeExpr ++ "\n")
+            Lean.Elab.Command.liftIO <| IO.FS.writeFile (directory / "type.pretty.txt") (typePretty ++ "\n")
             let metadata := Json.mkObj [
               ("finding_id", toJson findingId),
               ("reported_module", toJson reportedModule),
@@ -363,23 +363,23 @@ jobs:
               ("origin_matches_reported_module", toJson true),
               ("constant_kind", toJson kind),
               ("body_required", toJson needsBody)]
-            liftIO <| IO.println s!"[DECL_CONTEXT_BEGIN] {findingId}"
-            liftIO <| IO.println s!"[DECL_CONTEXT_ORIGIN] {metadata.compress}"
-            liftIO <| IO.println s!"[DECL_TYPE_BEGIN] {findingId}"
-            liftIO <| IO.println typePretty
-            liftIO <| IO.println s!"[DECL_TYPE_END] {findingId}"
+            Lean.Elab.Command.liftIO <| IO.println s!"[DECL_CONTEXT_BEGIN] {findingId}"
+            Lean.Elab.Command.liftIO <| IO.println s!"[DECL_CONTEXT_ORIGIN] {metadata.compress}"
+            Lean.Elab.Command.liftIO <| IO.println s!"[DECL_TYPE_BEGIN] {findingId}"
+            Lean.Elab.Command.liftIO <| IO.println typePretty
+            Lean.Elab.Command.liftIO <| IO.println s!"[DECL_TYPE_END] {findingId}"
             if needsBody then
               let some body := value
                 | throwError "Body finding lacks a definition/opaque value: {target}"
               let bodyFormat ← Lean.Elab.Command.liftTermElabM (Lean.Meta.ppExpr body)
               let bodyPretty := toString bodyFormat
-              liftIO <| IO.FS.writeFile (directory / "value.expr.txt") (reprStr body ++ "\n")
-              liftIO <| IO.FS.writeFile (directory / "value.pretty.txt") (bodyPretty ++ "\n")
-              liftIO <| IO.println s!"[DECL_VALUE_BEGIN] {findingId}"
-              liftIO <| IO.println bodyPretty
-              liftIO <| IO.println s!"[DECL_VALUE_END] {findingId}"
-            liftIO <| IO.FS.writeFile (directory / "lean-metadata.json") (metadata.compress ++ "\n")
-            liftIO <| IO.println s!"[DECL_CONTEXT_END] {findingId}"
+              Lean.Elab.Command.liftIO <| IO.FS.writeFile (directory / "value.expr.txt") (reprStr body ++ "\n")
+              Lean.Elab.Command.liftIO <| IO.FS.writeFile (directory / "value.pretty.txt") (bodyPretty ++ "\n")
+              Lean.Elab.Command.liftIO <| IO.println s!"[DECL_VALUE_BEGIN] {findingId}"
+              Lean.Elab.Command.liftIO <| IO.println bodyPretty
+              Lean.Elab.Command.liftIO <| IO.println s!"[DECL_VALUE_END] {findingId}"
+            Lean.Elab.Command.liftIO <| IO.FS.writeFile (directory / "lean-metadata.json") (metadata.compress ++ "\n")
+            Lean.Elab.Command.liftIO <| IO.println s!"[DECL_CONTEXT_END] {findingId}"
           '''
           results, errors = [], []
           findings = audit["findings"]
