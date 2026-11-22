@@ -709,7 +709,7 @@ theorem DB.pi {ι : Type*} [Fintype ι] [DecidableEq ι] {q : ℕ} {f : E → ι
   calc ‖fun i : ι => iteratedFDeriv ℝ j (fun v => f v i) u‖
       ≤ ∑ i : ι, ‖iteratedFDeriv ℝ j (fun v => f v i) u‖ := by
         refine (pi_norm_le_iff_of_nonneg (Finset.sum_nonneg fun _ _ => norm_nonneg _)).2 fun i => ?_
-        exact Finset.single_le_sum (fun _ _ => norm_nonneg _) (Finset.mem_univ i)
+        exact Finset.single_le_sum (fun k _ => norm_nonneg (iteratedFDeriv ℝ j (fun v => f v k) u)) (Finset.mem_univ i)
     _ ≤ ∑ _i : ι, S * P ^ j := Finset.sum_le_sum fun i _ => (h i).2 j hj
     _ = (Fintype.card ι * S) * P ^ j := by
         rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul, mul_assoc]

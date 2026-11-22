@@ -6,9 +6,9 @@
   "candidate": {
     "additional_private_imports": [],
     "patch_path": "candidate.patch",
-    "patch_sha256": "e3ea8d208e92f303680476b1c75f3bd567ecea3d9bdf5ea1282a96ba9d3e379f",
+    "patch_sha256": "785a902a3cc24d5bf3ed7c61f6a88ec33babb69587c538c97316600efc3cd1b8",
     "source_path": "candidate.lean",
-    "source_sha256": "6e3f5d9ef69c538e44c6f7af155f7ee2bbba27bae09abc6d88cb46ee226f3872"
+    "source_sha256": "9c16596ce0b47b6c1ba89f4ef834a94d46845bb506d4a24e3f22e95427d8ed3c"
   },
   "comparison_mode": "baseline_closure_plus_target_patch",
   "execution_repository": "alectionary/alpoge-rh-replay",
@@ -22,10 +22,10 @@
     "sha256": "831c1fbcf49ef92d8aff1ce9b95cbd2a78ebd75f135ef44b9f9f9b51651c8625"
   },
   "required_reviews": {
-    "independent_candidate": "0eb72324f6bb40c3ae3a35efec42411c0411881d2754edbd90118fe2e029cf71",
-    "independent_method": "690eb1717b60d3bea42fc8c9279d6192e3d76bde3be14f6c1d1a867282139996",
-    "root_candidate": "157307907dbb7bb030f85268a2b8dd0f44b90dbec044f4b672eb14276da070b5",
-    "root_method": "f72ceaabb07748853d19c1e4d8b819a1dc74ab9fccc5c47c32041e39d6b4269a"
+    "independent_candidate": "c7002da93e70c19c4d7828aa4845f99d3e2dea15acb8e4ac99a449a9d0447410",
+    "independent_method": "45200f932165fdbf4191157c720f3797f327323e7d2abcb05314480d5ad44ff1",
+    "root_candidate": "cdd94b9d3931f53beea4bd475e647113ce46b2c57c7238cc1405daf113c6aad3",
+    "root_method": "82594c5f09d0717d0b072813a651e76c1b8846fa9d2d3f5284071b06e66a16e5"
   },
   "schema_version": 1,
   "status": "Reviewed bounded DB.pi experiment; no actual compilation or performance result and no canonical PR approval.",
