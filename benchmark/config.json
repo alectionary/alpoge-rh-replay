@@ -1,0 +1,35 @@
+{
+  "baseline": {
+    "commit": "c7791603122c0328f79e49f6be5d7d4402effc53",
+    "repository": "leanprover-community/riemann-hypothesis"
+  },
+  "candidate": {
+    "additional_private_imports": [
+      "Formalism.HermitianCurvature.HermitianCurvatureProofs.WhittakerVanishingImpliesZero"
+    ],
+    "patch_path": "candidate.patch",
+    "patch_sha256": "8c09080531e7b6ea98ab1f0cac60affba2ebf20b724115619cecc98f7a7f9e33",
+    "source_path": "candidate.lean",
+    "source_sha256": "7ff7b9d54ee482fe93a0c8064f5b79faf5f6e00ea97ae7985e178c66c3c18ee9"
+  },
+  "comparison_mode": "baseline_closure_plus_target_patch",
+  "execution_repository": "alectionary/alpoge-rh-replay",
+  "manifest": {
+    "path": "source-manifest.json",
+    "sha256": "a3145abc382449f41936adebab0188b258641e3ac53923f8750db6b4af2ef288"
+  },
+  "order": "ABBAAB",
+  "post_build_driver": {
+    "path": "post-build-check.lean",
+    "sha256": "903e9cc56b7edebcece439fb534888d91129e6ffe529b6b4e28a193c93c86fc0"
+  },
+  "required_reviews": {
+    "independent_candidate": "7995575273dbd47462488aa819d34f36fce8386856d1323ca2094d3638cd24fa",
+    "independent_method": "6238181327822fa1713655a8a0abd220b54e7b534eb9faf6fa3580bfaf9ef60e",
+    "root_candidate": "bad9358d68e8b1d90e6f5d2d8817c222974ff97e0b1f20aaeee3d406c1b005d5",
+    "root_method": "d2f2621790e11cddf09af08774546571dbdf3715aec602249e44eb6a88fa21dd"
+  },
+  "schema_version": 1,
+  "status": "Reviewed bound root-separation source experiment; no compilation, timing or publication result assigned.",
+  "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives"
+}

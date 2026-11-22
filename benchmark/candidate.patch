@@ -1,0 +1,68 @@
+--- a/src/Formalism/HermitianCurvature/HermitianCurvatureProofs/PhaseFunctionDerivatives.lean
++++ b/src/Formalism/HermitianCurvature/HermitianCurvatureProofs/PhaseFunctionDerivatives.lean
+@@ -5,6 +5,8 @@
+ public import Formalism.HermitianCurvature.HermitianCurvatureProofs.OrbitalIntegralConvergesAbs
+ public import Formalism.HermitianCurvature.HermitianCurvatureProofs.FourierUniquenessMirabolic
+ public import Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep
++
++import Formalism.HermitianCurvature.HermitianCurvatureProofs.WhittakerVanishingImpliesZero
+ 
+ @[expose] public section
+ 
+@@ -218,53 +220,12 @@
+ open Formalism.FourierDecayAlt.G
+ 
+ theorem b_pow_sub_one (ω : ℂ) (hω : ‖ω‖ = 1) (i : ℕ) : ‖ω ^ i - 1‖ ≤ i * ‖ω - 1‖ := by
+-  induction i with
+-  | zero => simp
+-  | succ i ih =>
+-    have e : ω ^ (i + 1) - 1 = ω * (ω ^ i - 1) + (ω - 1) := by ring
+-    rw [e]
+-    refine (norm_add_le _ _).trans ?_
+-    rw [norm_mul, hω, one_mul]
+-    push_cast
+-    linarith
++  exact WhittakerVanishingImpliesZero.norm_pow_sub_one_le hω i
+ 
+ theorem b_root_sep (s : ℕ) (hs : 0 < s) (z z' : ℂ) (hz : z ≠ 0) (h : z' ^ s = z ^ s) (hne : z' ≠ z) :
+     ‖z‖ ≤ s * ‖z' - z‖ := by
+-  obtain ⟨ω, hω⟩ : ∃ ω, ω = z' / z := ⟨_, rfl⟩
+-  have hz' : z' = ω * z := by rw [hω]; field_simp
+-  have hzs : z ^ s ≠ 0 := pow_ne_zero _ hz
+-  have hω1 : ω ^ s = 1 := by rw [hω, div_pow, h, div_self hzs]
+-  have hωne : ω - 1 ≠ 0 := by
+-    intro h0
+-    apply hne
+-    rw [hz', sub_eq_zero.1 h0, one_mul]
+-  have hn : ‖ω‖ = 1 := by
+-    have : ‖ω‖ ^ s = 1 := by rw [← norm_pow, hω1, norm_one]
+-    exact (pow_eq_one_iff_of_nonneg (norm_nonneg _) hs.ne').1 this
+-  have hsum : ∑ i ∈ range s, ω ^ i = 0 := by
+-    have := mul_geom_sum ω s
+-    rw [hω1, sub_self] at this
+-    exact (mul_eq_zero.1 this).resolve_left hωne
+-  have h1 : (s : ℂ) = -∑ i ∈ range s, (ω ^ i - 1) := by
+-    rw [Finset.sum_sub_distrib, hsum]
+-    simp
+-  have h2 : (s : ℝ) ≤ ∑ i ∈ range s, (s : ℝ) * ‖ω - 1‖ := by
+-    calc (s : ℝ) = ‖(s : ℂ)‖ := by simp
+-      _ = ‖∑ i ∈ range s, (ω ^ i - 1)‖ := by rw [h1, norm_neg]
+-      _ ≤ ∑ i ∈ range s, ‖ω ^ i - 1‖ := norm_sum_le _ _
+-      _ ≤ ∑ i ∈ range s, (s : ℝ) * ‖ω - 1‖ := by
+-        refine Finset.sum_le_sum fun i hi => (b_pow_sub_one ω hn i).trans ?_
+-        have : (i : ℝ) ≤ s := by exact_mod_cast (Finset.mem_range.1 hi).le
+-        exact mul_le_mul_of_nonneg_right this (norm_nonneg _)
+-  rw [Finset.sum_const, Finset.card_range, nsmul_eq_mul] at h2
+-  have hs' : (0 : ℝ) < s := by exact_mod_cast hs
+-  have h3 : 1 ≤ (s : ℝ) * ‖ω - 1‖ := by
+-    by_contra hlt
+-    push Not at hlt
+-    nlinarith
+-  have h4 : z' - z = (ω - 1) * z := by rw [hz']; ring
+-  rw [h4, norm_mul, ← mul_assoc]
+-  exact le_mul_of_one_le_left (norm_nonneg _) h3
++  simpa only [norm_sub_rev] using
++    WhittakerVanishingImpliesZero.root_sep hs h.symm hne.symm
+ 
+ theorem b_differentiableAt {n : ℕ} (D' : ℂ) (x : Fin n → ℂ) (hx : ∀ k, x k ≠ 0) :
+     DifferentiableAt ℂ (g0 D') x := by

@@ -1,85 +1,77 @@
-name: Port build check
+name: Bounded source proof benchmark
+run-name: Bounded proof benchmark ${{ inputs.expected_helper_commit }}
+
 on:
-  pull_request:
-    paths:
-      - 'port/patches/M*.patch'
-      - 'port/patches/M*.json'
-      - 'port/target.json'
-      - 'scripts/port-ci-build.py'
-      - '.github/workflows/port-build.yml'
   workflow_dispatch:
     inputs:
-      patch_ids:
-        description: 'Space-separated module (M005629) or packet (P0015) IDs to build'
-        required: false
-        default: 'M005629'
+      expected_helper_commit:
+        description: Exact independently reviewed helper commit H
+        required: true
         type: string
+      expected_config_sha256:
+        description: SHA256 of the reviewed bound benchmark/config.json
+        required: true
+        type: string
+
 permissions:
   contents: read
+
 concurrency:
-  group: port-build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: bounded-proof-benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  port-build:
+  bounded-source-proof-benchmark:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.repository_owner == 'alectionary' && github.event.repository.private == false }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 60
+    env:
+      EXPECTED_HELPER_COMMIT: ${{ inputs.expected_helper_commit }}
+      EXPECTED_CONFIG_SHA256: ${{ inputs.expected_config_sha256 }}
+      ELAN_TOOLCHAIN: leanprover/lean4:v4.36.0
     steps:
-      - uses: actions/checkout@v4
+      - name: Reserve time for diagnostic upload
+        run: |
+          python3 - <<'PY'
+          import os, time
+          with open(os.environ['GITHUB_ENV'], 'a') as stream:
+              stream.write('BENCH_JOB_START_EPOCH=' + str(time.time()) + '\n')
+          PY
+      - name: Checkout only the reviewed benchmark helper
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          fetch-depth: 0
+          ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Validate port records and patch policy
-        run: python3 tracker/validate_ports.py
-      - name: Determine target modules
-        id: targets
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_REF: ${{ github.base_ref }}
-          DISPATCH_IDS: ${{ inputs.patch_ids }}
+          sparse-checkout: benchmark
+          fetch-depth: 1
+      - name: Reject unbound or changed inputs before setup
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            ids="${DISPATCH_IDS:-M005629}"
-            echo "mode=explicit" >> "$GITHUB_OUTPUT"
-            echo "ids=$ids" >> "$GITHUB_OUTPUT"
-          else
-            changed=$(git diff --name-only --diff-filter=ACMR "origin/${BASE_REF}...HEAD" -- 'port/patches/M*.json' 'port/patches/M*.patch')
-            if [ -n "$changed" ]; then
-              echo "mode=diff" >> "$GITHUB_OUTPUT"
-              echo "ids=" >> "$GITHUB_OUTPUT"
-            else
-              echo "No port/patches/M* files changed; running smoke test on M005629."
-              echo "mode=explicit" >> "$GITHUB_OUTPUT"
-              echo "ids=M005629" >> "$GITHUB_OUTPUT"
-            fi
-          fi
-      - name: Free disk space for Mathlib cache and Lean build
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          df -h
-      - name: Install elan and the target Lean toolchain
+          python3 - <<'PY'
+          import os, re
+          helper = os.environ['EXPECTED_HELPER_COMMIT']
+          config = os.environ['EXPECTED_CONFIG_SHA256']
+          assert re.fullmatch('[0-9a-f]{40}', helper) and helper == os.environ['GITHUB_SHA']
+          assert re.fullmatch('[0-9a-f]{64}', config)
+          print('[BENCH_HELPER] ' + helper)
+          print('[BENCH_CONFIG_SHA256] ' + config)
+          PY
+          python3 benchmark/benchmark.py validate --config benchmark/config.json --config-sha256 "$EXPECTED_CONFIG_SHA256"
+      - name: Install stock toolchain and measurement tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y elan
-          LEAN_TOOLCHAIN="$(python3 -c "import json; print(json.load(open('port/target.json'))['lean'])")"
-          elan toolchain install "$LEAN_TOOLCHAIN"
-          elan default "$LEAN_TOOLCHAIN"
-          lean --version
-          lake --version
-      - name: Fetch verified sources, apply patches, and build with Lean
-        env:
-          BASE_REF: ${{ github.base_ref }}
-          TARGET_MODE: ${{ steps.targets.outputs.mode }}
-          TARGET_IDS: ${{ steps.targets.outputs.ids }}
+          sudo apt-get install -y elan bubblewrap time
+          elan toolchain install leanprover/lean4:v4.36.0
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Run bounded union warm-up and ABBAAB comparison
         run: |
-          if [ "$TARGET_MODE" = "explicit" ]; then
-            # shellcheck disable=SC2086
-            python3 scripts/port-ci-build.py \
-              --workspace "$RUNNER_TEMP/port-workspace" \
-              --setup-lake \
-              --patch-ids $TARGET_IDS
-          else
-            python3 scripts/port-ci-build.py \
-              --workspace "$RUNNER_TEMP/port-workspace" \
-              --setup-lake \
-              --base-ref "origin/${BASE_REF}"
-          fi
+          python3 benchmark/benchmark.py run --config benchmark/config.json --config-sha256 "$EXPECTED_CONFIG_SHA256" \
+            --workspace "$RUNNER_TEMP/bounded-benchmark-workspace" --output "$RUNNER_TEMP/bounded-benchmark-output"
+      - name: Retain actual diagnostics, including failed attempts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bounded-proof-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bounded-benchmark-output
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
