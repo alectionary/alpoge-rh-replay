@@ -16,8 +16,9 @@ permissions:
 env:
   AUDIT_SOURCE_COMMIT: ${{ inputs.source_commit }}
   PATCH_IDS: ${{ inputs.patch_ids }}
-  AUDIT_POLICY_COMMIT: 749aefb802680024c33d06c58ad4b2ed75a1d3a1
-  AUDIT_SCRIPT_SHA256: aa5d944f11e687880959ea125061ef562594ba8352076da4b83e2f496cb9e39b
+  AUDIT_POLICY_COMMIT: 3e956370a34018cb518084553ad90befaa8eed1c
+  AUDIT_SCRIPT_SHA256: f94052a41bdca049b3e91c9077ccf940b0cc5fe36b3e2767f78a64567ac5aae7
+  REUSED_AUDIT_SCRIPT_SHA256: 2e72631b47fccd5b8f7f41f17c634e708566e96f17d8ebc53c86f592745ab5d1
 jobs:
   semantic-audit:
     runs-on: ubuntu-24.04
@@ -51,6 +52,8 @@ jobs:
           assert policy_sha == os.environ["AUDIT_POLICY_COMMIT"]
           script_sha = hashlib.sha256((policy / "port/islattice_audit.lean").read_bytes()).hexdigest()
           assert script_sha == os.environ["AUDIT_SCRIPT_SHA256"]
+          reused_sha = hashlib.sha256((policy / "port/reused_audit.lean").read_bytes()).hexdigest()
+          assert reused_sha == os.environ["REUSED_AUDIT_SCRIPT_SHA256"]
           pins = json.loads(Path("port/target.json").read_text())
           assert pins["lean"] == "leanprover/lean4:v4.36.0"
           assert pins["mathlib"] == "fc4f59e577feb1a4956671bc04ac18aaaf8cd842"
@@ -72,6 +75,7 @@ jobs:
           print("[AUDIT_SOURCE]", actual, flush=True)
           print("[AUDIT_POLICY]", policy_sha, flush=True)
           print("[AUDIT_SCRIPT_SHA256]", script_sha, flush=True)
+          print("[REUSED_AUDIT_SCRIPT_SHA256]", reused_sha, flush=True)
           for row in manifest:
               print("[AUDIT_MODULE]", row["id"], row["module"], flush=True)
           PY
@@ -96,19 +100,35 @@ jobs:
             --workspace "$RUNNER_TEMP/port-semantic-workspace" \
             --setup-lake \
             --patch-ids "${ids[@]}"
-      - name: Audit elaborated statements and definition bodies
+      - name: Audit elaborated types, definitions and opaque bodies with both policy scripts
         run: |
           python3 - <<'PY'
           import hashlib, json, os, subprocess
           from pathlib import Path
           workspace = Path(os.environ["RUNNER_TEMP"]) / "port-semantic-workspace"
-          auditor = Path(os.environ["GITHUB_WORKSPACE"]) / "policy/port/islattice_audit.lean"
+          policy = Path(os.environ["GITHUB_WORKSPACE"]) / "policy"
           manifest = json.loads((Path(os.environ["RUNNER_TEMP"]) / "port-semantic-manifest.json").read_text())
+          auditors = [
+              ("islattice", policy / "port/islattice_audit.lean", "AUDIT_SCRIPT_SHA256"),
+              ("reused", policy / "port/reused_audit.lean", "REUSED_AUDIT_SCRIPT_SHA256"),
+          ]
+          for kind, auditor, digest_env in auditors:
+              assert hashlib.sha256(auditor.read_bytes()).hexdigest() == os.environ[digest_env]
+          failures = []
           for row in manifest:
               obj = workspace / (".lake/build/lib/lean/" + row["module"].replace(".", "/") + ".olean")
               assert obj.is_file(), obj
               print("[AUDIT_OBJECT]", row["id"], hashlib.sha256(obj.read_bytes()).hexdigest(), flush=True)
-              subprocess.run(["lake", "env", "lean", "--run", str(auditor), row["module"]],
-                             cwd=workspace, check=True)
+              for kind, auditor, _ in auditors:
+                  print("[AUDIT_BEGIN]", kind, row["id"], row["module"], flush=True)
+                  result = subprocess.run(["lake", "env", "lean", "--run", str(auditor), row["module"]],
+                                          cwd=workspace)
+                  print("[AUDIT_END]", kind, row["id"], result.returncode, flush=True)
+                  if result.returncode != 0:
+                      failures.append((kind, row["id"], result.returncode))
+          if failures:
+              raise SystemExit("SEMANTIC_AUDITS_FAILED " + repr(failures))
           print("ISLATTICE_AUDIT_PASSED all", len(manifest), "module(s).", flush=True)
+          print("REUSED_AUDIT_PASSED all", len(manifest), "module(s).", flush=True)
+          print("SEMANTIC_AUDITS_PASSED all", len(manifest), "module(s), both auditors.", flush=True)
           PY
