@@ -1,5 +1,5 @@
-name: Bounded source proof benchmark
-run-name: Bounded proof benchmark ${{ inputs.expected_helper_commit }}
+name: Bounded original-source profile
+run-name: Baseline Etale profile ${{ inputs.expected_helper_commit }}
 
 on:
   workflow_dispatch:
@@ -17,11 +17,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: bounded-proof-benchmark-${{ github.ref }}
+  group: bounded-etale-profile-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  bounded-source-proof-benchmark:
+  bounded-original-source-profile:
     if: ${{ github.event_name == 'workflow_dispatch' && github.repository_owner == 'alectionary' && github.event.repository.private == false }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -37,7 +37,7 @@ jobs:
           with open(os.environ['GITHUB_ENV'], 'a') as stream:
               stream.write('BENCH_JOB_START_EPOCH=' + str(time.time()) + '\n')
           PY
-      - name: Checkout only the reviewed benchmark helper
+      - name: Checkout only the reviewed profiling helper
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.sha }}
@@ -52,8 +52,8 @@ jobs:
           config = os.environ['EXPECTED_CONFIG_SHA256']
           assert re.fullmatch('[0-9a-f]{40}', helper) and helper == os.environ['GITHUB_SHA']
           assert re.fullmatch('[0-9a-f]{64}', config)
-          print('[BENCH_HELPER] ' + helper)
-          print('[BENCH_CONFIG_SHA256] ' + config)
+          print('[PROFILE_HELPER] ' + helper)
+          print('[PROFILE_CONFIG_SHA256] ' + config)
           PY
           python3 benchmark/benchmark.py validate --config benchmark/config.json --config-sha256 "$EXPECTED_CONFIG_SHA256"
       - name: Install stock toolchain and measurement tools
@@ -78,16 +78,16 @@ jobs:
           grep -Eq '^elan 4[.]4[.]0( |$)' "$installer_dir/elan-version.txt"
           test "$(command -v elan)" = "$ELAN_HOME/bin/elan"
           timeout 600 "$ELAN_HOME/bin/elan" toolchain install leanprover/lean4:v4.36.0
-      - name: Run bounded union warm-up and ABBAAB comparison
+      - name: Profile the unchanged source within the bounded budget
         run: |
           python3 benchmark/benchmark.py run --config benchmark/config.json --config-sha256 "$EXPECTED_CONFIG_SHA256" \
-            --workspace "$RUNNER_TEMP/bounded-benchmark-workspace" --output "$RUNNER_TEMP/bounded-benchmark-output"
+            --workspace "$RUNNER_TEMP/bounded-profile-workspace" --output "$RUNNER_TEMP/bounded-profile-output"
       - name: Retain actual diagnostics, including failed attempts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: bounded-proof-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/bounded-benchmark-output
+          name: bounded-original-profile-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bounded-profile-output
           if-no-files-found: warn
           compression-level: 0
           retention-days: 14

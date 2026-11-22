@@ -1,598 +1,536 @@
 #!/usr/bin/env python3
-"""Fork-only bounded source measurement. No invocation dispatches CI or publishes.
-
-Only `run` executes the explicitly bound source, after complete input validation.
-The default config is deliberately missing method-review/execution bindings.
-"""
+"""Fork-only, baseline-only attribution diagnostic; no dispatch or publication."""
 import argparse
-import difflib
-import hashlib
+import importlib.util
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shlex
 import stat
-import statistics
 import subprocess
+import sys
 import time
 
-ORDER = 'ABBAAB'
-MANIFEST_SHA256 = 'de1a6a096cd17a98ba4652c0c40c3c0cbdd522a904a1c94de645a6c7f77d59c0'
+sys.dont_write_bytecode = True
+BASE = '291b7446ece6917c5cd959edd98510fdc06947b2'
 TARGET = 'Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts'
-ADDITIONAL_PRIVATE_IMPORTS = ()
-BASELINE_TARGET_SHA256 = '91d9392acb58ae737203bc8385f51bb01a13e670cdea47b8c808e31d4e943872'
-CANDIDATE_SHA256 = '9c16596ce0b47b6c1ba89f4ef834a94d46845bb506d4a24e3f22e95427d8ed3c'
-CANDIDATE_PATCH_SHA256 = '785a902a3cc24d5bf3ed7c61f6a88ec33babb69587c538c97316600efc3cd1b8'
-BASELINE = '1b894f7511841e6607bc0398cf2657526bbb29d9'
-LEAN = 'Lean (version 4.36.0, x86_64-unknown-linux-gnu, commit 611c117bfaf7b7ae1cfcf246ce6fba31e8f509e9, Release)'
-LAKE = 'Lake version 5.0.0-src+611c117 (Lean version 4.36.0)'
-POSTCHECK_SHA256 = '831c1fbcf49ef92d8aff1ce9b95cbd2a78ebd75f135ef44b9f9f9b51651c8625'
-ALLOWED_AXIOMS = {'propext', 'Classical.choice', 'Quot.sound'}
-CHECK_DECLARATIONS = {'Formalism.FourierDecayAlt.P.EtaleIntegralityFacts.DB.pi'}
-COMPILED_SUFFIXES = ('.olean', '.olean.private', '.olean.server', '.ilean', '.ir', '.ir.sig',
-                     '.so', '.a', '.o', '.c', '.bc', '.ll')
-PINNED_FILES = {
-    'lakefile.toml': 'e12dd96eb155851de5107571dbfc959e5d9b230ead90331b4778b55b048590bb',
-    'lake-manifest.json': 'ee003c5c7a9b2b2a82a142b6633916661c07117199dd143d94d1af63910237df',
-    'lean-toolchain': '582a63f8f9c5128067b688778c1051cf1464c3ca9d57b9325025c051c29b774a',
-}
+CORE_SHA = '20fa8da717588e2e07c1bd8a1a9fc58a8ba40fa57dfe81667aeb6732dcf12f9c'
+MANIFEST_SHA = '42bce92d6ff48d8756d421979c17fab82f4eb106d461fa42af53b7a67c361fd8'
+DRIVER_SHA = '831c1fbcf49ef92d8aff1ce9b95cbd2a78ebd75f135ef44b9f9f9b51651c8625'
+ORIGINAL_SHA = '91d9392acb58ae737203bc8385f51bb01a13e670cdea47b8c808e31d4e943872'
+EXECUTION_REPOSITORY = 'alectionary/alpoge-rh-replay'
+OPTIONS = {'autoImplicit': False, 'relaxedAutoImplicit': False, 'maxSynthPendingDepth': 3,
+           'pp.unicode.fun': True, 'maxHeartbeats': 4000000}
+PROFILE_ARGS = ['--profile', '-Dprofiler.threshold=100']
 
 
-def digest(data):
-    return hashlib.sha256(data).hexdigest()
+def load_core():
+    # Check lexical ancestors and bytes before executing even the trusted helpers.
+    import hashlib
+    path = Path(__file__).absolute().parent / 'benchmark_core.py'
+    for item in [*reversed(path.parents), path]:
+        mode = item.lstat().st_mode
+        if stat.S_ISLNK(mode) or (item != path and not stat.S_ISDIR(mode)):
+            raise ValueError('Unsafe core path.')
+    if not stat.S_ISREG(path.stat().st_mode) or hashlib.sha256(path.read_bytes()).hexdigest() != CORE_SHA:
+        raise ValueError('Pinned common helper bytes differ.')
+    spec = importlib.util.spec_from_file_location('reviewed_profile_helpers', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def encode(value):
-    return (json.dumps(value, indent=2, sort_keys=True) + '\n').encode()
+core = load_core()
+require, digest, encode = core.require, core.digest, core.encode
 
 
-def require(condition, message):
-    if not condition:
-        raise ValueError(message)
+def strict_json(data):
+    def pairs(items):
+        value = {}
+        for key, item in items:
+            require(key not in value, 'Duplicate JSON key: ' + key)
+            value[key] = item
+        return value
+    return json.loads(data, object_pairs_hook=pairs)
 
 
-def sha(value):
-    return isinstance(value, str) and re.fullmatch('[0-9a-f]{64}', value) is not None
-
-
-class Budget:
-    """Stop the controller by job minute50, leaving10minutes for diagnostics."""
-    def __init__(self, started_epoch):
-        started_epoch = float(started_epoch)
-        require(0 < started_epoch <= time.time() + 1, 'Invalid workflow budget start.')
-        self.deadline = time.monotonic() + started_epoch + 3000 - time.time()
-
-    def cap(self, maximum):
-        remaining = self.deadline - time.monotonic()
-        require(remaining > 0, 'Global job measurement budget exhausted; retain/upload diagnostics.')
-        return min(maximum, remaining)
-
-
-def timeout_for(budget, maximum):
-    return budget.cap(maximum) if budget is not None else maximum
-
-
-def path_checked(path, *, missing=False):
-    path = Path(path)
-    require('..' not in path.parts, 'Parent path traversal rejected.')
-    path = Path(os.path.abspath(path))
-    part = Path(path.anchor)
-    for name in path.parts[1:]:
-        part /= name
-        try:
-            info = part.lstat()
-        except FileNotFoundError:
-            require(missing, 'Required path missing: ' + str(part))
-            continue
-        require(not stat.S_ISLNK(info.st_mode), 'Symlink path rejected: ' + str(part))
-    return path
-
-
-def regular(path):
-    path = path_checked(path)
-    require(stat.S_ISREG(path.stat().st_mode), 'Expected regular file: ' + str(path))
-    return path
-
-
-def relative_file(root, relative):
-    require(isinstance(relative, str) and relative, 'Missing relative input path.')
-    rel = PurePosixPath(relative)
-    require(not rel.is_absolute() and '..' not in rel.parts and '\\' not in relative, 'Unsafe input path.')
-    return regular(Path(root).joinpath(*rel.parts))
-
-
-def imports(data):
-    return [row['module'] for row in import_rows(data)]
-
-
-def import_rows(data):
-    found = []
-    for line in data.decode().splitlines():
-        match = re.fullmatch(r'(public )?import (all )?([A-Za-z0-9_.]+)', line.strip())
-        if match:
-            found.append(dict(module=match[3], public=bool(match[1]), all=bool(match[2])))
-        else:
-            require(re.match(r'^(?:public\s+)?(?:meta\s+)?import\b', line.strip()) is None,
-                    'Unsupported import header; do not undercount dependencies.')
-    return found
-
-
-def comparison_graphs(manifest, target, candidate, allowed_additions):
+def graph(manifest):
     modules = manifest['modules']
-    require(target in modules, 'Target remains unbound or outside the pinned pool.')
-    original = modules[target]['import_forms']
-    changed = import_rows(candidate)
-    require(len({row['module'] for row in changed}) == len(changed), 'Duplicate candidate import.')
-    require([row for row in changed if row['public']] == [row for row in original if row['public']], 'Public imports changed.')
-    require(all(row in changed for row in original), 'An original import was removed/changed.')
-    require(isinstance(allowed_additions, list) and len(allowed_additions) == len(set(allowed_additions)), 'Private import allowance remains unbound.')
-    extras = [row for row in changed if row not in original]
-    require(extras == [dict(module=name, public=False, all=False) for name in allowed_additions], 'Unreviewed additional import.')
-    require(all(name in modules for name in allowed_additions), 'Additional import outside the pinned pool.')
-    def closure(candidate_mode):
-        seen, pending = set(), [target]
-        while pending:
-            mid = pending.pop()
-            if mid not in seen:
-                seen.add(mid)
-                dependencies = ([row['module'] for row in changed if row['module'] in modules]
-                                if candidate_mode and mid == target else modules[mid]['project_imports'])
-                pending.extend(dependencies)
-        return seen
-    baseline, selected = closure(False), closure(True)
-    # Reject an added private dependency which would import its new owner back.
-    for added in allowed_additions:
-        seen, pending = set(), [added]
-        while pending:
-            mid = pending.pop()
-            require(mid != target, 'Candidate import creates a cycle.')
-            if mid not in seen:
-                seen.add(mid)
-                pending.extend(modules[mid]['project_imports'])
-    return dict(baseline=sorted(baseline), candidate=sorted(selected), union=sorted(baseline | selected),
-                baseline_direct_imports=original, candidate_direct_imports=changed,
-                baseline_project_dependencies=len(baseline) - 1, candidate_project_dependencies=len(selected) - 1)
-
-
-def load_config(path, expected_sha):
-    """Validate every binding before any network call, subprocess or output write."""
-    path = regular(path)
-    raw = path.read_bytes()
-    require(sha(expected_sha) and digest(raw) == expected_sha, 'Config digest does not match.')
-    config = json.loads(raw)
-    require(config['schema_version'] == 1 and config['comparison_mode'] == 'baseline_closure_plus_target_patch', 'Unknown comparison mode.')
-    require(config['baseline'] == {'repository': 'leanprover-community/riemann-hypothesis', 'commit': BASELINE}, 'Wrong immutable baseline.')
-    require(config['target_module'] == TARGET and config['order'] == ORDER, 'Target remains unbound or wrong order.')
-    require(isinstance(config['execution_repository'], str) and re.fullmatch(r'alectionary/[A-Za-z0-9_.-]+', config['execution_repository']), 'Execution fork remains unbound.')
-    for name, value in config['required_reviews'].items():
-        require(sha(value), 'Required review remains unbound: ' + name)
-    require(set(config['required_reviews']) == {'root_candidate', 'independent_candidate', 'root_method', 'independent_method'}, 'Review bindings incomplete.')
-    manifest_bytes = relative_file(path.parent, config['manifest']['path']).read_bytes()
-    require(config['manifest']['sha256'] == MANIFEST_SHA256 and digest(manifest_bytes) == MANIFEST_SHA256, 'Manifest digest differs.')
-    manifest = json.loads(manifest_bytes)
-    require(manifest['source_commit'] == BASELINE and manifest['target'] == TARGET and len(manifest['modules']) == 15, 'Wrong source closure.')
-    require(manifest['config_files'] == PINNED_FILES, 'Canonical config pins differ.')
-    modules = manifest['modules']
-    require(all(row['path'] == 'src/' + mid.replace('.', '/') + '.lean' and sha(row['sha256']) for mid, row in modules.items()), 'Invalid module manifest.')
-    require(all(dep in modules for row in modules.values() for dep in row['project_imports']), 'Incomplete project closure.')
     seen, pending = set(), [TARGET]
     while pending:
         mid = pending.pop()
+        require(mid in modules, 'Missing closure module.')
         if mid not in seen:
             seen.add(mid)
             pending.extend(modules[mid]['project_imports'])
-    require(seen == set(modules) and len(seen) == 15, 'Baseline closure differs.')
-    require(modules[TARGET]['sha256'] == BASELINE_TARGET_SHA256, 'Wrong DB.pi baseline source.')
-    candidate = config['candidate']
-    require(candidate['source_sha256'] == CANDIDATE_SHA256 and candidate['patch_sha256'] == CANDIDATE_PATCH_SHA256, 'Candidate remains unbound or differs from this fixed DB.pi prototype.')
-    data = relative_file(path.parent, candidate['source_path']).read_bytes()
-    patch = relative_file(path.parent, candidate['patch_path']).read_bytes()
-    require(digest(data) == candidate['source_sha256'] and digest(patch) == candidate['patch_sha256'], 'Candidate/patch bytes differ.')
-    require(candidate['additional_private_imports'] == list(ADDITIONAL_PRIVATE_IMPORTS), 'Private import allowance remains unbound or differs.')
-    graphs = comparison_graphs(manifest, config['target_module'], data, candidate['additional_private_imports'])
-    require(set(graphs['union']) == set(modules) and graphs['baseline'] == graphs['candidate'] and len(graphs['candidate']) == 15, 'Candidate union differs.')
-    driver = relative_file(path.parent, config['post_build_driver']['path']).read_bytes()
-    require(config['post_build_driver']['sha256'] == POSTCHECK_SHA256 and digest(driver) == POSTCHECK_SHA256, 'Post-build driver differs.')
-    return config, manifest, data, patch, raw
+    require(seen == set(modules) and len(seen) == 15, 'Wrong exact source closure.')
+    require(len(modules[TARGET]['import_forms']) == 12, 'Wrong direct imports.')
+    return sorted(seen)
 
 
-def clean_environment(workspace):
-    env = {key: os.environ[key] for key in ('PATH', 'HOME', 'ELAN_HOME', 'SSL_CERT_FILE', 'SSL_CERT_DIR') if key in os.environ}
-    env.update(LC_ALL='C', LANG='C', ELAN_TOOLCHAIN='leanprover/lean4:v4.36.0',
-               LEAN_ABORT_ON_PANIC='1', LEAN_NUM_THREADS='2', LAKE_ARTIFACT_CACHE='false',
-               LAKE_RESTORE_ARTIFACTS='false', LAKE_NO_CACHE='true',
-               LAKE_CACHE_DIR=str(workspace / '.isolated-lake-cache'),
-               MATHLIB_CACHE_GET_URL='https://cache.mathlib.org/mathlib4')
-    return env
+def load_config(path, expected_sha):
+    """Reject every missing/mismatched binding before creating outputs or running tools."""
+    path = core.regular(path)
+    raw = path.read_bytes()
+    require(core.sha(expected_sha) and digest(raw) == expected_sha, 'Config digest differs.')
+    config = strict_json(raw)
+    require(set(config) == {'schema_version', 'mode', 'baseline', 'target_module', 'execution_repository',
+                           'core', 'manifest', 'post_build_driver', 'profiler', 'required_reviews', 'status'},
+            'Unknown profile config fields; benchmark/candidate modes are rejected.')
+    require(type(config['schema_version']) is int and config['schema_version'] == 1 and
+            config['mode'] == 'baseline_profile_only', 'Wrong profile schema/mode.')
+    require(config['baseline'] == {'repository': 'leanprover-community/riemann-hypothesis', 'commit': BASE}, 'Wrong profile baseline.')
+    require(config['target_module'] == TARGET and config['execution_repository'] == EXECUTION_REPOSITORY,
+            'Unbound/wrong target or execution repository.')
+    require(config['core'] == {'path': 'benchmark_core.py', 'sha256': CORE_SHA}, 'Wrong common core binding.')
+    require(digest(core.relative_file(path.parent, 'benchmark_core.py').read_bytes()) == CORE_SHA, 'Common core bytes changed.')
+    require(config['manifest'] == {'path': 'source-manifest.json', 'sha256': MANIFEST_SHA}, 'Wrong manifest binding.')
+    manifest_bytes = core.relative_file(path.parent, 'source-manifest.json').read_bytes()
+    require(digest(manifest_bytes) == MANIFEST_SHA, 'Manifest bytes changed.')
+    manifest = strict_json(manifest_bytes)
+    require(manifest['source_commit'] == BASE and manifest['target'] == TARGET, 'Wrong manifest source.')
+    require(manifest['config_files'] == core.PINNED_FILES, 'Canonical pins changed.')
+    require(manifest['modules'][TARGET]['sha256'] == ORIGINAL_SHA, 'Wrong original target.')
+    for mid, row in manifest['modules'].items():
+        require(row['path'] == 'src/' + mid.replace('.', '/') + '.lean' and core.sha(row['sha256']), 'Bad source path/hash.')
+    graph(manifest)
+    require(config['post_build_driver'] == {'path': 'post-build-check.lean', 'sha256': DRIVER_SHA}, 'Wrong type/axiom driver binding.')
+    driver = core.relative_file(path.parent, 'post-build-check.lean').read_bytes()
+    require(digest(driver) == DRIVER_SHA, 'Type/axiom driver bytes changed.')
+    require(config['profiler'] == {'arguments': PROFILE_ARGS, 'threshold_ms': 100} and
+            type(config['profiler']['threshold_ms']) is int, 'Profiler arguments/threshold differ.')
+    require(set(config['required_reviews']) == {'root_method', 'independent_method'} and
+            all(core.sha(value) for value in config['required_reviews'].values()), 'Method review remains unbound.')
+    require(isinstance(config['status'], str), 'Invalid descriptive status.')
+    return config, manifest, driver, raw
 
 
-def fetch_input(config, relative, wanted, env, budget, log_path):
-    url = 'https://raw.githubusercontent.com/' + config['baseline']['repository'] + '/' + BASELINE + '/' + relative
-    maximum = timeout_for(budget, 120)
+def descriptors(directory, names):
+    return {name: {'bytes': core.regular(directory / name).stat().st_size,
+                   'sha256': digest(core.regular(directory / name).read_bytes())}
+            for name in names if (directory / name).exists()}
+
+
+def write_new(path, data):
+    path = core.path_checked(path, missing=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    core.path_checked(path.parent)
+    with path.open('xb') as stream:
+        stream.write(data)
+
+
+def fetch_current(config, relative, wanted, env, budget, output, index):
+    # Deliberately does not call the old core.fetch_input (which pins1b894).
+    url = 'https://raw.githubusercontent.com/' + config['baseline']['repository'] + '/' + BASE + '/' + relative
+    maximum = core.timeout_for(budget, 120)
     command = ['curl', '--fail', '--location', '--silent', '--show-error', '--max-time', str(maximum),
                '--max-filesize', '2097152', url]
-    result = subprocess.run(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            check=False, timeout=maximum)
-    with log_path.open('ab') as log:
-        log.write(encode(dict(command=command, exit_code=result.returncode, stderr=result.stderr.decode(errors='replace'))))
-    require(result.returncode == 0, 'Input HTTP request failed.')
-    data = result.stdout
-    require(len(data) <= 2 * 1024 * 1024 and digest(data) == wanted, 'Fetched input digest differs: ' + relative)
-    return data
-
-
-def input_seal(workspace, expected):
-    for relative, wanted in expected.items():
-        require(digest(relative_file(workspace, relative).read_bytes()) == wanted, 'Input changed: ' + relative)
-
-
-def artifact_roots(workspace):
-    roots = [workspace / '.lake/build/lib/lean', workspace / '.lake/build/ir']
-    packages = workspace / '.lake/packages'
-    if packages.is_dir():
-        for package in sorted(packages.iterdir()):
-            require(not package.is_symlink(), 'Dependency symlink rejected.')
-            roots += [package / '.lake/build/lib/lean', package / '.lake/build/ir']
-    return roots
-
-
-def target_bases(workspace, target=TARGET):
-    module = Path(*target.split('.'))
-    return [workspace / '.lake/build' / sub / module for sub in ('lib/lean', 'ir')]
-
-
-def target_files(workspace, target=TARGET):
-    found = []
-    for base in target_bases(workspace, target):
-        path_checked(base.parent, missing=True)
-        if not base.parent.exists():
-            continue
-        for item in base.parent.iterdir():
-            if item.name.startswith(base.name + '.'):
-                require(not item.is_symlink() and item.is_file(), 'Nonregular target artifact rejected.')
-                found.append(regular(item))
-    return sorted(found)
-
-
-def clean_target(workspace, target=TARGET):
-    removed = []
-    for path in target_files(workspace, target):
-        removed.append(str(path.relative_to(workspace)))
-        path.unlink()
-    require(not target_files(workspace, target), 'Target artifact cleanup incomplete.')
-    return removed
-
-
-def artifact_rows(workspace, *, exclude_target=False, target=TARGET, budget=None):
-    excluded = set(target_files(workspace, target)) if exclude_target else set()
-    rows = {}
-    for root in artifact_roots(workspace):
-        path_checked(root, missing=True)
-        if root.exists():
-            for path in sorted(root.rglob('*')):
-                if budget is not None:
-                    budget.cap(1)
-                require(not path.is_symlink(), 'Artifact symlink rejected.')
-                if path.is_dir() or path in excluded:
-                    continue
-                path = regular(path)
-                # Rehash may refresh bookkeeping without recompiling imports.
-                # Seal real compiled inputs, not .hash/.trace/setup/LTAR state.
-                if not path.name.endswith(COMPILED_SUFFIXES):
-                    continue
-                info = path.stat()
-                rows[str(path.relative_to(workspace))] = dict(bytes=info.st_size, sha256=digest(path.read_bytes()), mtime_ns=info.st_mtime_ns)
-    return rows
-
-
-def package_identity(workspace, env, budget=None):
-    manifest = json.loads((workspace / 'lake-manifest.json').read_bytes())
-    rows = {}
-    for item in manifest['packages']:
-        require(item['type'] == 'git' and not item.get('subDir'), 'Unsupported dependency kind.')
-        package = path_checked(workspace / '.lake/packages' / item['name'])
-        def git(*args):
-            return subprocess.check_output(['git', '-C', str(package), *args], env=env, text=True,
-                                           timeout=timeout_for(budget, 60)).strip()
-        require(git('rev-parse', 'HEAD') == item['rev'], 'Dependency commit differs: ' + item['name'])
-        require(not git('status', '--porcelain', '--untracked-files=no'), 'Tracked dependency changes: ' + item['name'])
-        require(not git('ls-files', '--others', '--exclude-standard', '--', '*.lean', 'lakefile.toml', 'lake-manifest.json', 'lean-toolchain'), 'Untracked dependency code: ' + item['name'])
-        rows[item['name']] = item['rev']
-    require(rows['mathlib'] == 'fc4f59e577feb1a4956671bc04ac18aaaf8cd842', 'Mathlib pin differs.')
-    return rows
-
-
-def sandbox_prefix(workspace):
-    return ['bwrap', '--die-with-parent', '--new-session', '--unshare-user', '--unshare-pid',
-            '--unshare-ipc', '--unshare-net', '--unshare-uts', '--ro-bind', '/', '/',
-            '--bind', str(workspace), str(workspace),
-            '--proc', '/proc', '--dev', '/dev', '--tmpfs', '/tmp', '--chdir', str(workspace), '--']
-
-
-def sandbox_command(workspace, targets):
-    return sandbox_prefix(workspace) + ['lake', '--rehash', 'build'] + ['+' + target for target in targets]
-
-
-def time_metrics(data):
-    text = data.decode()
-    rss = re.findall(r'^\s*Maximum resident set size \(kbytes\): (\d+)$', text, re.M)
-    exit_codes = re.findall(r'^\s*Exit status: (\d+)$', text, re.M)
-    elapsed = re.findall(r'^\s*Elapsed \(wall clock\) time \(h:mm:ss or m:ss\): (.+)$', text, re.M)
-    require(len(rss) == len(exit_codes) == len(elapsed) == 1, 'Incomplete GNU time output.')
-    return dict(gnu_max_rss_kbytes=int(rss[0]), gnu_exit_status=int(exit_codes[0]), gnu_elapsed_text=elapsed[0],
-                rss_scope='GNU time reported command/process-family maximum; not total concurrent RAM')
-
-
-def sandbox_preflight(workspace, output, env, toolchain_bin, budget=None):
-    output.mkdir()
-    records = {}
-    for name, expected in (('lean', LEAN), ('lake', LAKE)):
-        command = sandbox_prefix(workspace) + [str(toolchain_bin / name), '--version']
-        with (output / (name + '.stdout.log')).open('wb') as stdout, (output / (name + '.stderr.log')).open('wb') as stderr:
-            process = subprocess.run(command, cwd=workspace, env=env, stdout=stdout, stderr=stderr, check=False, timeout=timeout_for(budget, 30))
-        record = dict(command=command, exit_code=process.returncode,
-                      stdout_sha256=digest((output / (name + '.stdout.log')).read_bytes()),
-                      stderr_sha256=digest((output / (name + '.stderr.log')).read_bytes()))
-        records[name] = record
-        (output / 'result.json').write_bytes(encode(records))
-        require(process.returncode == 0 and (output / (name + '.stdout.log')).read_text().strip() == expected,
-                'Noncompiling sandbox/toolchain probe failed; see retained diagnostics.')
-    return records
-
-
-def trial(workspace, output, label, expected, dependencies, env, *, target=TARGET, budget=None, executor=subprocess.run):
-    output.mkdir(parents=True, exist_ok=False)
-    removed = clean_target(workspace, target)
-    input_seal(workspace, expected)
-    require(artifact_rows(workspace, exclude_target=True, target=target, budget=budget) == dependencies, 'Imported artifacts changed before trial.')
-    olean = Path(str(target_bases(workspace, target)[0]) + '.olean')
-    require(not olean.exists() and not olean.is_symlink(), 'Target olean exists before build.')
-    command = ['/usr/bin/time', '-v', '-o', str(output / 'time-v.txt'), '--'] + sandbox_command(workspace, [target])
-    result = dict(label=label, status='started', command=command, environment=env,
-                  removed_target_artifacts=removed, publication_approved=False, full_proof_verified=False)
-    started = time.monotonic()
-    started_ns = time.time_ns()
+    failure = None
     try:
-        with (output / 'build.log').open('wb') as log:
-            process = executor(command, cwd=workspace, env=env, stdout=log, stderr=subprocess.STDOUT, check=False, timeout=timeout_for(budget, 300))
-        result.update(exit_code=process.returncode, monotonic_wall_seconds=time.monotonic() - started)
-        if (output / 'time-v.txt').exists():
-            result.update(time_metrics((output / 'time-v.txt').read_bytes()))
-        require(process.returncode == 0, 'Actual module command failed.')
-        require(result.get('gnu_exit_status') == 0, 'GNU time status is missing/nonzero.')
-        info = regular(olean).stat()
-        require(info.st_size > 0 and info.st_mtime_ns >= started_ns, 'No fresh nonempty target olean emitted.')
-        input_seal(workspace, expected)
-        require(artifact_rows(workspace, exclude_target=True, target=target, budget=budget) == dependencies, 'Imported artifacts changed during trial.')
-        artifacts = {str(path.relative_to(workspace)): dict(bytes=path.stat().st_size, sha256=digest(path.read_bytes())) for path in target_files(workspace, target)}
-        require(all(any(name.endswith(suffix) for name in artifacts) for suffix in ('.olean', '.olean.private', '.olean.server')), 'Current module olean family is incomplete.')
-        result.update(status='passed', target_artifacts=artifacts,
-                      olean_family_bytes=sum(row['bytes'] for name, row in artifacts.items() if name.endswith(('.olean', '.olean.private', '.olean.server'))),
-                      all_target_lean_artifact_bytes=sum(row['bytes'] for name, row in artifacts.items() if '/lib/lean/' in name),
-                      all_target_artifact_bytes=sum(row['bytes'] for row in artifacts.values()))
-    except Exception as error:
-        result.update(status='failed', error_type=type(error).__name__, error=str(error), monotonic_wall_seconds=time.monotonic() - started)
-        raise
-    finally:
-        result['retained_logs'] = {name: dict(sha256=digest((output / name).read_bytes()), bytes=(output / name).stat().st_size)
-                                   for name in ('build.log', 'time-v.txt') if (output / name).is_file()}
-        (output / 'result.json').write_bytes(encode(result))
-    return result
+        result = subprocess.run(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                check=False, timeout=maximum)
+    except subprocess.TimeoutExpired as error:
+        # subprocess.run has killed/waited for the process; keep both partial streams.
+        result = subprocess.CompletedProcess(command, None, error.stdout or b'', error.stderr or b'')
+        failure = 'TimeoutExpired'
+    prefix = f'fetch/{index:02d}'
+    write_new(output / (prefix + '.stdout.log'), result.stdout)
+    write_new(output / (prefix + '.stderr.log'), result.stderr)
+    with (output / 'fetch-inputs.log').open('ab') as log:
+        log.write(encode({'command': command, 'exit_code': result.returncode, 'stdout': prefix + '.stdout.log',
+                          'stderr': prefix + '.stderr.log', 'source_path': relative, 'error_type': failure}))
+    require(result.returncode == 0, 'Source HTTP request failed; raw response retained.')
+    require(len(result.stdout) <= 2 * 1024 * 1024 and digest(result.stdout) == wanted, 'Source digest differs: ' + relative)
+    return result.stdout
 
 
-def summarize(rows):
-    require([row['label'] for row in rows] == list(ORDER) and all(row['status'] == 'passed' for row in rows), 'Incomplete/failed comparison; no timing summary.')
-    groups = {label: [row['monotonic_wall_seconds'] for row in rows if row['label'] == label] for label in 'AB'}
-    require(all(value > 0 for group in groups.values() for value in group), 'Invalid measured duration.')
-    pairs = []
-    for index in range(0, 6, 2):
-        pair = {row['label']: row for row in rows[index:index + 2]}
-        pairs.append(dict(A_seconds=pair['A']['monotonic_wall_seconds'], B_seconds=pair['B']['monotonic_wall_seconds'],
-                          observed_A_over_B=pair['A']['monotonic_wall_seconds'] / pair['B']['monotonic_wall_seconds']))
-    return dict(order=ORDER, per_variant_seconds=groups, paired_results=pairs,
-                median_A_seconds=statistics.median(groups['A']), median_B_seconds=statistics.median(groups['B']),
-                observed_median_A_over_B=statistics.median(groups['A']) / statistics.median(groups['B']),
-                interpretation='Preliminary bounded-module measurements only; no full-proof or reproducible-speedup claim.',
-                publication_approved=False, full_proof_verified=False)
+def verify_sources(workspace, manifest, expected):
+    core.input_seal(workspace, expected)
+    for mid, row in manifest['modules'].items():
+        data = core.relative_file(workspace, row['path']).read_bytes()
+        require(len(data) == row['bytes'] and len(data.splitlines()) == row['lines'], 'Source size/line count differs.')
+        require(core.import_rows(data) == row['import_forms'], 'Actual source imports differ.')
+    original = core.relative_file(workspace, manifest['modules'][TARGET]['path']).read_bytes()
+    require(original.startswith(b'module\n') and digest(original) == ORIGINAL_SHA, 'Original module header/body differs.')
 
 
-def parse_axioms(stdout):
-    records, block, completed = {}, [], False
-    for line in stdout.splitlines():
-        if not line.strip() and not block:
+def verify_seals(workspace, manifest, expected, packages, compiled, env, budget):
+    verify_sources(workspace, manifest, expected)
+    require(core.package_identity(workspace, env, budget) == packages, 'Package identity changed.')
+    require(core.artifact_rows(workspace, exclude_target=False, target=TARGET, budget=budget) == compiled,
+            'Warm compiled artifacts changed (including original target).')
+
+
+def diagnostic_artifacts(workspace, diagnostic_library, started_ns):
+    base = diagnostic_library / Path(*TARGET.split('.'))
+    rows = {}
+    for path in sorted(diagnostic_library.rglob('*')):
+        core.path_checked(path)
+        if path.is_dir():
             continue
-        if line == '[BENCH_POSTCHECK_COMPLETED]':
-            require(not completed and not block, 'Malformed/duplicate post-check completion.')
-            completed = True
-            continue
-        require(not completed, 'Output follows post-check completion.')
-        if not block:
-            require(line.startswith('[BENCH_AXIOMS] '), 'Unexpected post-check output.')
-        block.append(line)
-        if ']' not in line.split(':', 1)[-1]:
-            continue
-        match = re.fullmatch(r'\[BENCH_AXIOMS\] ([A-Za-z0-9_.]+):\s*\[\s*([A-Za-z0-9_.,\s]*)\]', '\n'.join(block))
-        require(match is not None, 'Malformed axiom record.')
-        name, terms = match.groups()
-        axioms = [term.strip() for term in terms.split(',')] if terms.strip() else []
-        require(name in CHECK_DECLARATIONS and name not in records, 'Unowned/duplicate post-check declaration.')
-        require(all(axioms) and len(set(axioms)) == len(axioms) and set(axioms) <= ALLOWED_AXIOMS, 'Unexpected post-check axiom.')
-        records[name] = sorted(axioms)
-        block = []
-    require(completed and not block and set(records) == CHECK_DECLARATIONS, 'Incomplete post-check inventory.')
-    return records
+        path = core.regular(path)
+        require(path.parent == base.parent and path.name.startswith(base.name + '.') and
+                path.name[len(base.name):] in core.COMPILED_SUFFIXES, 'Unexpected diagnostic artifact.')
+        info = path.stat()
+        require(info.st_size > 0 and info.st_mtime_ns >= started_ns, 'Stale/empty diagnostic output.')
+        rows[path.relative_to(workspace).as_posix()] = {'bytes': info.st_size, 'sha256': digest(path.read_bytes()),
+                                                     'mtime_ns': info.st_mtime_ns}
+    require(all(str(base.relative_to(workspace)) + suffix in rows for suffix in ('.olean', '.olean.private', '.olean.server')),
+            'Incomplete fresh diagnostic OLean family.')
+    return rows
 
 
-def post_check(workspace, output, driver, expected, dependencies, env, target, budget=None):
+def parse_profile(stdout, stderr, workspace, diagnostic_olean, toolchain_bin):
+    setups, commands, took, cumulative = [], [], [], []
+    marker_count = 0
+    number = r'(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?'
+    for stream_name, data in [('stdout', stdout), ('stderr', stderr)]:
+        lines = data.decode().splitlines()
+        in_cumulative = False
+        for index, line in enumerate(lines, 1):
+            if 'module setup: ' in line:
+                prefix, raw = line.split('module setup: ', 1)
+                require(prefix.strip() in ('', 'info:', 'trace:'), 'Unknown setup log prefix.')
+                setup = strict_json(raw)
+                require(setup.get('name') == TARGET and setup.get('isModule') is True, 'Wrong module setup identity.')
+                require(encode(setup.get('options')) == encode(OPTIONS), 'Canonical options differ or overwrite profiler.')
+                require('imports' not in setup and isinstance(setup.get('importArts'), dict) and setup['importArts'],
+                        'Missing/overridden module imports.')
+                require(TARGET not in setup['importArts'], 'Profile setup imports its own warm target.')
+                setups.append((raw.encode(), setup))
+            if str(toolchain_bin / 'lean') in line:
+                tokens = shlex.split(line)
+                if str(toolchain_bin / 'lean') in tokens:
+                    pos = tokens.index(str(toolchain_bin / 'lean'))
+                    args = tokens[pos + 1:]
+                    require(len(args) == 8 and args[0] == '--tstack=400000' and args[2] == '--setup' and
+                            args[4:] == PROFILE_ARGS + ['-o', str(diagnostic_olean)], 'Verbose compiler arguments differ.')
+                    require(args[1] in (str(workspace / ('src/' + TARGET.replace('.', '/') + '.lean')),
+                                        'src/' + TARGET.replace('.', '/') + '.lean'), 'Wrong verbose compiler source.')
+                    require(Path(args[3]).is_absolute() and '..' not in Path(args[3]).parts, 'Unsafe generated setup path.')
+                    commands.append({'line': line, 'argv': tokens[pos:]})
+            hit = re.fullmatch(r'(.+?) took (' + number + r')(ms|s)', line)
+            if hit:
+                seconds = float(hit[2]) / (1000 if hit[3] == 'ms' else 1)
+                require(math.isfinite(seconds) and seconds >= 0, 'Invalid profiler duration.')
+                took.append({'stream': stream_name, 'line': index, 'text': line, 'seconds': seconds})
+            if line == 'cumulative profiling times:':
+                marker_count += 1
+                in_cumulative = True
+                continue
+            if in_cumulative:
+                hit = re.fullmatch(r'\s+(.+?) (' + number + r')(ms|s)', line)
+                if hit:
+                    seconds = float(hit[2]) / (1000 if hit[3] == 'ms' else 1)
+                    require(math.isfinite(seconds) and seconds >= 0, 'Invalid cumulative duration.')
+                    cumulative.append({'stream': stream_name, 'line': index, 'category': hit[1], 'seconds': seconds,
+                                       'text': line})
+                elif line.strip():
+                    in_cumulative = False
+    require(len(setups) == len(commands) == 1, 'Missing/duplicate actual setup or verbose compiler line.')
+    require(marker_count == 1 and took and cumulative, 'Missing actual profiler markers/rows.')
+    return setups[0], commands[0], {'threshold_ms': 100, 'took_rows': took, 'cumulative': cumulative,
+                                  'scope': 'Thresholded exclusive category/event attribution; not one row per theorem, serialized bytes, memory or comparative speed.'}
+
+
+def setup_project_bindings(setup, workspace, compiled, modules):
+    """Bind the actual setup's variable-length artifact arrays to sealed warm files."""
+    bindings = {}
+    for mid in modules:
+        if mid == TARGET:
+            continue
+        parts = setup['importArts'].get(mid)
+        require(isinstance(parts, list) and len(parts) == 2 and all(isinstance(part, list) for part in parts),
+                'Malformed project import artifact arrays.')
+        require(1 <= len(parts[0]) <= 3 and len(parts[1]) <= 2, 'Missing/excess project import artifacts.')
+        names = []
+        for values, suffixes in zip(parts, [('.olean', '.olean.server', '.olean.private'), ('.ir.sig', '.ir')]):
+            for reference, suffix in zip(values, suffixes):
+                require(isinstance(reference, str) and reference and '..' not in Path(reference).parts,
+                        'Unsafe setup artifact reference.')
+                path = Path(os.path.abspath(workspace / reference))
+                require(path.is_relative_to(workspace), 'Project setup artifact outside canonical workspace.')
+                relative = path.relative_to(workspace).as_posix()
+                require(relative == '.lake/build/lib/lean/' + mid.replace('.', '/') + suffix and relative in compiled,
+                        'Setup project artifact is not the sealed warm artifact.')
+                names.append(relative)
+        bindings[mid] = names
+    return bindings
+
+
+def profile_module(workspace, output, manifest, expected, packages, compiled, env, toolchain_bin, budget):
     output.mkdir()
-    (workspace / 'BenchmarkPostCheck.lean').write_bytes(driver)
-    (output / 'driver.lean').write_bytes(driver)
-    command = sandbox_prefix(workspace) + ['lake', 'env', 'lean', 'BenchmarkPostCheck.lean']
-    before = {str(path): (digest(path.read_bytes()), path.stat().st_mtime_ns) for path in target_files(workspace, target)}
-    result = dict(command=command, driver_sha256=digest(driver), status='started', timing_scope='Outside measured module build')
+    diagnostic = core.path_checked(workspace / '.profile-diagnostic', missing=True)
+    require(not diagnostic.exists(), 'Fresh empty diagnostic directory required.')
+    diagnostic.mkdir()
+    library = diagnostic / 'lib/lean'
+    olean = library / Path(*TARGET.split('.')).with_suffix('.olean')
+    olean.parent.mkdir(parents=True)
+    verify_seals(workspace, manifest, expected, packages, compiled, env, budget)
+    require(not list(library.rglob('*.*')), 'Diagnostic library was not empty.')
+    command = core.sandbox_prefix(workspace) + ['lake', '-v', 'lean', manifest['modules'][TARGET]['path'], '--'] + PROFILE_ARGS + ['-o', str(olean)]
+    result = {'status': 'preparing', 'command': command, 'environment': env, 'diagnostic_library': str(library),
+              'start_ns': time.time_ns(), 'publication_approved': False, 'full_proof_verified': False}
+    started = time.monotonic()
     try:
         with (output / 'stdout.log').open('wb') as stdout, (output / 'stderr.log').open('wb') as stderr:
-            process = subprocess.run(command, cwd=workspace, env=env, stdout=stdout, stderr=stderr, check=False, timeout=timeout_for(budget, 120))
-        result['exit_code'] = process.returncode
-        require(process.returncode == 0, 'Exact-type/axiom driver failed.')
-        require('sorryAx' not in (output / 'stderr.log').read_text(), 'Admission in post-check diagnostics.')
-        result['axioms'] = parse_axioms((output / 'stdout.log').read_text())
-        input_seal(workspace, expected)
-        require(artifact_rows(workspace, exclude_target=True, target=target, budget=budget) == dependencies, 'Post-check mutated dependencies.')
-        require(before == {str(path): (digest(path.read_bytes()), path.stat().st_mtime_ns) for path in target_files(workspace, target)}, 'Post-check mutated target artifacts.')
-        result['status'] = 'passed'
+            process = subprocess.run(command, cwd=workspace, env=env, stdout=stdout, stderr=stderr,
+                                     check=False, timeout=core.timeout_for(budget, 300))
+        result.update(exit_code=process.returncode, monotonic_wall_seconds=time.monotonic() - started)
+        require(process.returncode == 0, 'Actual profile command failed.')
+        (raw, setup), compiler, stats = parse_profile((output / 'stdout.log').read_bytes(), (output / 'stderr.log').read_bytes(),
+                                                    workspace, olean, toolchain_bin)
+        write_new(output / 'module-setup.json', raw)
+        result['module_setup'] = {'path': 'profile/module-setup.json', 'sha256': digest(raw), 'bytes': len(raw)}
+        result.update(verbose_compiler_line=compiler['line'], compiler_argv=compiler['argv'], profiler_statistics=stats)
+        result['setup_project_bindings'] = setup_project_bindings(setup, workspace, compiled, graph(manifest))
+        result['fresh_artifacts'] = diagnostic_artifacts(workspace, library, result['start_ns'])
+        verify_seals(workspace, manifest, expected, packages, compiled, env, budget)
+        result['status'] = 'completed'
     except Exception as error:
         result.update(status='failed', error_type=type(error).__name__, error=str(error))
         raise
     finally:
-        result['files'] = {name: dict(sha256=digest((output / name).read_bytes()), bytes=(output / name).stat().st_size)
-                           for name in ('driver.lean', 'stdout.log', 'stderr.log') if (output / name).is_file()}
+        result.setdefault('monotonic_wall_seconds', time.monotonic() - started)
+        result['controller_interval_seconds'] = time.monotonic() - started
+        result['wall_scope'] = 'Instrumented subprocess interval; parsing/seal overhead is separate, no comparative inference.'
+        result['retained_logs'] = descriptors(output, ['stdout.log', 'stderr.log', 'module-setup.json'])
+        (output / 'result.json').write_bytes(encode(result))
+    return result
+
+
+def overlay_dependencies(workspace, library, compiled, manifest, fresh):
+    """Complete the Formalism root without linking or replacing profiled outputs."""
+    source_root = '.lake/build/lib/lean/'
+    target_base = source_root + TARGET.replace('.', '/')
+    owners = {source_root + mid.replace('.', '/'): mid for mid in graph(manifest) if mid != TARGET}
+    rows = {}
+    for name, source in compiled.items():
+        if not name.startswith(source_root + 'Formalism/'):
+            continue
+        if name.startswith(target_base + '.'):
+            continue
+        matches = [base for base in owners if name.startswith(base + '.') and
+                   str(PurePosixPath(name).parent) == str(PurePosixPath(base).parent)]
+        require(len(matches) == 1, 'Warm Formalism artifact outside exact dependency closure.')
+        suffix = name[len(matches[0]):]
+        require(suffix in core.COMPILED_SUFFIXES, 'Unexpected compiled dependency suffix.')
+        path = core.relative_file(workspace, name)
+        data = path.read_bytes()
+        require(len(data) == source['bytes'] and digest(data) == source['sha256'], 'Overlay source differs from warm seal.')
+        destination = library / name[len(source_root):]
+        require(not destination.exists(), 'Overlay would overwrite a diagnostic artifact.')
+        write_new(destination, data)
+        info = core.regular(destination).stat()
+        require(digest(destination.read_bytes()) == source['sha256'], 'Copied overlay bytes differ.')
+        rows[destination.relative_to(workspace).as_posix()] = {
+            'source_path': name, 'source_bytes': source['bytes'], 'source_sha256': source['sha256'],
+            'bytes': info.st_size, 'sha256': digest(data), 'mtime_ns': info.st_mtime_ns}
+    for base in owners:
+        require(all(any(row['source_path'] == base + suffix for row in rows.values())
+                    for suffix in ('.olean', '.olean.private', '.olean.server')), 'Dependency overlay family incomplete.')
+    verify_library(workspace, library, fresh, rows)
+    return rows
+
+
+def verify_library(workspace, library, fresh, overlay):
+    expected = dict(fresh)
+    expected.update({name: {key: row[key] for key in ('bytes', 'sha256', 'mtime_ns')} for name, row in overlay.items()})
+    require(len(expected) == len(fresh) + len(overlay), 'Overlay overlaps the profiled target.')
+    actual = {}
+    for path in sorted(library.rglob('*')):
+        core.path_checked(path)
+        if path.is_dir():
+            continue
+        path = core.regular(path)
+        info = path.stat()
+        actual[path.relative_to(workspace).as_posix()] = {'bytes': info.st_size, 'sha256': digest(path.read_bytes()),
+                                                       'mtime_ns': info.st_mtime_ns}
+    require(actual == expected, 'Profiled target or complete diagnostic overlay changed.')
+    for name, row in overlay.items():
+        source = core.relative_file(workspace, row['source_path'])
+        require(source.stat().st_size == row['source_bytes'] == row['bytes'] and
+                digest(source.read_bytes()) == row['source_sha256'] == row['sha256'], 'Overlay source binding differs.')
+
+
+def validate_post_path(value, library, captured, workspace):
+    require(isinstance(captured, str) and captured and '\n' not in captured and '\r' not in captured, 'Invalid captured LEAN_PATH.')
+    parts = captured.split(os.pathsep)
+    require(all(part and '..' not in Path(part).parts for part in parts), 'Unsafe/empty LEAN_PATH component.')
+    normalized = [str(Path(os.path.abspath(workspace / part))) for part in parts]
+    require(str(library) not in normalized and str(workspace / '.lake/build/lib/lean') in normalized,
+            'Missing canonical warm library path.')
+    require(value == str(library) + os.pathsep + captured, 'Profiled complete library must be first in LEAN_PATH.')
+
+
+def post_check_profile(workspace, output, driver, manifest, expected, packages, compiled, env,
+                       toolchain_bin, library, fresh, overlay, budget):
+    output.mkdir()
+    write_new(workspace / 'BenchmarkPostCheck.lean', driver)
+    write_new(output / 'driver.lean', driver)
+    probe_command = core.sandbox_prefix(workspace) + ['lake', 'env', 'printenv', 'LEAN_PATH']
+    result = {'status': 'preparing', 'driver_sha256': digest(driver), 'publication_approved': False,
+              'full_proof_verified': False, 'timing_scope': 'After profiling, outside attribution interval'}
+    try:
+        verify_library(workspace, library, fresh, overlay)
+        verify_seals(workspace, manifest, expected, packages, compiled, env, budget)
+        with (output / 'lean-path.stdout.log').open('wb') as stdout, (output / 'lean-path.stderr.log').open('wb') as stderr:
+            probe = subprocess.run(probe_command, cwd=workspace, env=env, stdout=stdout, stderr=stderr,
+                                   check=False, timeout=core.timeout_for(budget, 30))
+        result['lean_path_probe'] = {'command': probe_command, 'environment': env, 'exit_code': probe.returncode}
+        require(probe.returncode == 0, 'Trusted Lake LEAN_PATH probe failed.')
+        raw_path = (output / 'lean-path.stdout.log').read_bytes().decode()
+        require(raw_path.endswith('\n') and raw_path.count('\n') == 1, 'Unexpected LEAN_PATH probe output.')
+        captured = raw_path[:-1]
+        post_env = dict(env, LEAN_PATH=str(library) + os.pathsep + captured)
+        validate_post_path(post_env['LEAN_PATH'], library, captured, workspace)
+        result['lean_path_probe']['LEAN_PATH'] = captured
+        command = core.sandbox_prefix(workspace) + [str(toolchain_bin / 'lean'), 'BenchmarkPostCheck.lean']
+        result.update(command=command, environment=post_env)
+        with (output / 'stdout.log').open('wb') as stdout, (output / 'stderr.log').open('wb') as stderr:
+            process = subprocess.run(command, cwd=workspace, env=post_env, stdout=stdout, stderr=stderr,
+                                     check=False, timeout=core.timeout_for(budget, 120))
+        result['exit_code'] = process.returncode
+        require(process.returncode == 0, 'Profiled-output original-type/axiom driver failed.')
+        require('sorryAx' not in (output / 'stderr.log').read_text(), 'Admission in driver diagnostics.')
+        result['axioms'] = core.parse_axioms((output / 'stdout.log').read_text())
+        require(result['axioms'] == {name: sorted(core.ALLOWED_AXIOMS) for name in core.CHECK_DECLARATIONS},
+                'Original DB.pi actual axiom inventory differs.')
+        verify_library(workspace, library, fresh, overlay)
+        verify_seals(workspace, manifest, expected, packages, compiled, env, budget)
+        result['status'] = 'completed'
+    except Exception as error:
+        result.update(status='failed', error_type=type(error).__name__, error=str(error))
+        raise
+    finally:
+        result['files'] = descriptors(output, ['driver.lean', 'stdout.log', 'stderr.log', 'lean-path.stdout.log', 'lean-path.stderr.log'])
+        if 'lean_path_probe' in result:
+            result['lean_path_probe']['files'] = {name: result['files'][name] for name in ('lean-path.stdout.log', 'lean-path.stderr.log') if name in result['files']}
         (output / 'result.json').write_bytes(encode(result))
     return result
 
 
 def run(config_path, config_sha, workspace, output):
-    config, manifest, candidate, patch, raw_config = load_config(config_path, config_sha)
-    require(os.environ.get('GITHUB_REPOSITORY') == config['execution_repository'], 'Wrong execution repository.')
-    require(os.environ.get('GITHUB_EVENT_NAME') == 'workflow_dispatch', 'Manual dispatch is required.')
-    require(re.fullmatch('[0-9a-f]{40}', os.environ.get('EXPECTED_HELPER_COMMIT', '')) is not None and
-            os.environ.get('GITHUB_SHA') == os.environ['EXPECTED_HELPER_COMMIT'], 'Helper identity differs.')
-    budget = Budget(os.environ.get('BENCH_JOB_START_EPOCH', '0'))
+    config, manifest, driver, raw_config = load_config(config_path, config_sha)
+    require(os.environ.get('GITHUB_REPOSITORY') == EXECUTION_REPOSITORY and
+            os.environ.get('GITHUB_EVENT_NAME') == 'workflow_dispatch', 'Wrong repository/event.')
+    require(re.fullmatch('[0-9a-f]{40}', os.environ.get('EXPECTED_HELPER_COMMIT', '')) and
+            os.environ.get('GITHUB_SHA') == os.environ['EXPECTED_HELPER_COMMIT'], 'Wrong exact helper.')
+    require(os.environ.get('EXPECTED_CONFIG_SHA256') == config_sha and
+            re.fullmatch('[1-9][0-9]*', os.environ.get('GITHUB_RUN_ID', '')) and
+            os.environ.get('GITHUB_RUN_ATTEMPT') == '1', 'Config/run/attempt identity differs.')
+    budget = core.Budget(os.environ.get('BENCH_JOB_START_EPOCH', '0'))
     budget.cap(1)
-    workspace, output = path_checked(workspace, missing=True), path_checked(output, missing=True)
-    require(not workspace.is_relative_to(output) and not output.is_relative_to(workspace), 'Workspace and controller evidence paths must be disjoint.')
-    require(not workspace.exists() and not output.exists(), 'Fresh workspace/output paths required; retain previous failed attempts.')
+    workspace, output = core.path_checked(workspace, missing=True), core.path_checked(output, missing=True)
+    require(not workspace.is_relative_to(output) and not output.is_relative_to(workspace), 'Evidence and compiler workspace must be disjoint.')
+    require(not workspace.exists() and not output.exists(), 'Fresh workspace/output required; retain failed attempts.')
     workspace.mkdir(parents=True)
     output.mkdir(parents=True)
-    (output / 'config.json').write_bytes(raw_config)
-    (output / 'source-manifest.json').write_bytes(encode(manifest))
-    (output / 'candidate.lean').write_bytes(candidate)
-    (output / 'candidate.patch').write_bytes(patch)
-    driver = relative_file(config_path.parent, config['post_build_driver']['path']).read_bytes()
-    receipt = dict(schema_version=1, comparison_mode=config['comparison_mode'], status='preparing',
-                   config_sha256=config_sha, harness_sha256=digest(Path(__file__).read_bytes()),
-                   expected_helper_commit=os.environ['EXPECTED_HELPER_COMMIT'],
-                   workflow_budget_start_epoch=os.environ['BENCH_JOB_START_EPOCH'], controller_deadline_minutes=50,
-                   github={key: os.environ.get(key) for key in ('GITHUB_REPOSITORY', 'GITHUB_SHA', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_WORKFLOW_REF')},
-                   publication_approved=False, full_proof_verified=False)
+    write_new(output / 'config.json', raw_config)
+    write_new(output / 'source-manifest.json', core.relative_file(config_path.parent, 'source-manifest.json').read_bytes())
+    receipt = {'schema': 'baseline-original-profile-v1', 'schema_version': 1, 'mode': 'baseline_profile_only',
+               'status': 'preparing', 'config_sha256': config_sha, 'controller_sha256': digest(core.regular(__file__).read_bytes()),
+               'core_sha256': CORE_SHA, 'expected_helper_commit': os.environ['EXPECTED_HELPER_COMMIT'],
+               'workflow_budget_start_epoch': os.environ['BENCH_JOB_START_EPOCH'], 'controller_deadline_minutes': 50,
+               'github': {key: os.environ.get(key) for key in ('GITHUB_REPOSITORY', 'GITHUB_SHA', 'GITHUB_RUN_ID',
+                          'GITHUB_RUN_ATTEMPT', 'GITHUB_WORKFLOW_REF', 'GITHUB_EVENT_NAME')},
+               'publication_approved': False, 'publication_ready': False, 'full_proof_verified': False}
+    (output / 'receipt.json').write_bytes(encode(receipt))
     try:
-        env = clean_environment(workspace)
-        expected = dict(PINNED_FILES)
+        env = core.clean_environment(workspace)
+        expected = dict(core.PINNED_FILES)
         expected.update({row['path']: row['sha256'] for row in manifest['modules'].values()})
-        for relative, wanted in expected.items():
-            data = fetch_input(config, relative, wanted, env, budget, output / 'fetch-inputs.log')
-            path = workspace / relative
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
-            retained = output / 'baseline-inputs' / relative
-            retained.parent.mkdir(parents=True, exist_ok=True)
-            retained.write_bytes(data)
-        receipt['actual_input_sha256'] = dict(expected)
-        target = config['target_module']
-        graphs = comparison_graphs(manifest, target, candidate, config['candidate']['additional_private_imports'])
-        receipt['source_graphs'] = graphs
-        target_path = manifest['modules'][target]['path']
-        original = (workspace / target_path).read_bytes()
-        canonical_patch = ''.join(difflib.unified_diff(original.decode().splitlines(True), candidate.decode().splitlines(True),
-                                                     fromfile='a/' + target_path, tofile='b/' + target_path)).encode()
-        require(canonical_patch == patch, 'Candidate patch does not exactly describe the target overlay.')
+        for index, (relative, wanted) in enumerate(expected.items(), 1):
+            data = fetch_current(config, relative, wanted, env, budget, output, index)
+            write_new(workspace / relative, data)
+            write_new(output / 'baseline-inputs' / relative, data)
+        receipt['actual_input_sha256'] = expected
+        verify_sources(workspace, manifest, expected)
+        modules = graph(manifest)
+        receipt.update(source_graph=modules, source_import_counts={'direct': 12, 'project_dependencies': 14, 'warmed_project_modules': 15})
         (workspace / '.isolated-lake-cache').mkdir()
-        actual_lean = regular(subprocess.check_output(['elan', 'which', 'lean'], env=env, text=True, timeout=timeout_for(budget, 30)).strip())
-        actual_lake = regular(subprocess.check_output(['elan', 'which', 'lake'], env=env, text=True, timeout=timeout_for(budget, 30)).strip())
-        require(actual_lake.parent == actual_lean.parent, 'Stock Lean/Lake installations differ.')
-        toolchain_bin = path_checked(actual_lean.parent)
-        receipt['stock_binary_sha256'] = {name: digest((toolchain_bin / name).read_bytes()) for name in ('lean', 'lake')}
+        binaries = {name: core.regular(subprocess.check_output(['elan', 'which', name], env=env, text=True,
+                                                             timeout=core.timeout_for(budget, 30)).strip()) for name in ('lean', 'lake')}
+        require(binaries['lean'].parent == binaries['lake'].parent, 'Stock toolchain roots differ.')
+        toolchain_bin = binaries['lean'].parent
         env['PATH'] = str(toolchain_bin) + os.pathsep + env['PATH']
-        receipt['stock_toolchain_bin'] = str(toolchain_bin)
-        receipt['environment'] = env
-        receipt['host'] = dict(uname=list(os.uname()), cpu_count=os.cpu_count(), available_disk_bytes=os.statvfs(workspace).f_bavail * os.statvfs(workspace).f_frsize,
-                               proc_meminfo=Path('/proc/meminfo').read_text())
-        versions = {name: subprocess.check_output([str(toolchain_bin / name), '--version'], env=env, text=True, timeout=timeout_for(budget, 30)).strip() for name in ('lean', 'lake')}
-        require(versions == {'lean': LEAN, 'lake': LAKE}, 'Actual compiler/Lake identity differs.')
-        receipt['versions'] = versions
-        receipt['sandbox_preflight'] = sandbox_preflight(workspace, output / 'sandbox-preflight', env, toolchain_bin, budget)
+        receipt.update(stock_toolchain_bin=str(toolchain_bin), stock_binary_sha256={name: digest(path.read_bytes()) for name, path in binaries.items()},
+                       environment=env)
+        receipt['versions'] = {name: subprocess.check_output([str(path), '--version'], env=env, text=True,
+                                                           timeout=core.timeout_for(budget, 30)).strip() for name, path in binaries.items()}
+        require(receipt['versions'] == {'lean': core.LEAN, 'lake': core.LAKE}, 'Stock compiler version differs.')
+        receipt['sandbox_preflight'] = core.sandbox_preflight(workspace, output / 'sandbox-preflight', env, toolchain_bin, budget)
         cache_command = ['lake', 'exe', 'mathlib/cache', 'get']
         receipt['mathlib_setup_command'] = cache_command
         with (output / 'mathlib-setup.log').open('wb') as log:
-            setup = subprocess.run(cache_command, cwd=workspace, env=env, stdout=log, stderr=subprocess.STDOUT, check=False, timeout=timeout_for(budget, 900))
+            setup = subprocess.run(cache_command, cwd=workspace, env=env, stdout=log, stderr=subprocess.STDOUT,
+                                   check=False, timeout=core.timeout_for(budget, 900))
         receipt['mathlib_setup_exit_code'] = setup.returncode
         require(setup.returncode == 0, 'Official Mathlib cache setup failed.')
-        packages = package_identity(workspace, env, budget)
-        input_seal(workspace, expected)
-        # The one baseline warm-up builds the unchanged exact fifteen-source union; no import is added.
-        warm_dir = output / 'warm-baseline'
-        # Warm-up legitimately creates project imports, so only its execution/log
-        # retention is shared with measured trials; imported seals start afterward.
-        warm_dir.mkdir()
-        warm_command = ['/usr/bin/time', '-v', '-o', str(warm_dir / 'time-v.txt'), '--'] + sandbox_command(workspace, graphs['union'])
-        receipt['cold_baseline_warm_command'] = warm_command
-        warm_started = time.monotonic()
-        try:
-            with (warm_dir / 'build.log').open('wb') as log:
-                warm = subprocess.run(warm_command, cwd=workspace, env=env, stdout=log, stderr=subprocess.STDOUT, check=False, timeout=timeout_for(budget, 900))
-        finally:
-            receipt['cold_baseline_warm_wall_seconds'] = time.monotonic() - warm_started
-        receipt['cold_baseline_warm_exit_code'] = warm.returncode
-        if (warm_dir / 'time-v.txt').is_file():
-            receipt['cold_baseline_warm_metrics'] = time_metrics((warm_dir / 'time-v.txt').read_bytes())
-        require(warm.returncode == 0, 'Actual cold baseline build failed; logs retained.')
-        require(package_identity(workspace, env, budget) == packages, 'Package identity changed in warm-up.')
-        input_seal(workspace, expected)
-        for mid in graphs['union']:
-            path = workspace / '.lake/build/lib/lean' / Path(*mid.split('.')).with_suffix('.olean')
-            require(regular(path).stat().st_size > 0, 'Warm closure module missing: ' + mid)
-        dependencies = artifact_rows(workspace, exclude_target=True, target=target, budget=budget)
-        (output / 'dependency-artifacts.json').write_bytes(encode(dependencies))
-        receipt.update(package_heads=packages, dependency_artifacts_sha256=digest(encode(dependencies)),
-                       available_dependency_olean_files=sum(name.endswith('.olean') for name in dependencies),
-                       source_import_counts=dict(baseline_direct=len(graphs['baseline_direct_imports']),
-                                                 candidate_direct=len(graphs['candidate_direct_imports']),
-                                                 baseline_project_dependencies=graphs['baseline_project_dependencies'],
-                                                 candidate_project_dependencies=graphs['candidate_project_dependencies'],
-                                                 warmed_project_modules=len(graphs['union']),
-                                                 external_source_imports=sorted({name for mid in graphs['union'] for name in manifest['modules'][mid]['other_imports']})),
-                       import_count_scope='Measured from unchanged source graph; cached-olean inventory is not an actual imported-module count.')
-        rows = []
-        expected_axioms = None
-        for index, label in enumerate(ORDER):
-            data = original if label == 'A' else candidate
-            (workspace / target_path).write_bytes(data)
-            current = dict(expected, **{target_path: digest(data)})
-            require(package_identity(workspace, env, budget) == packages, 'Package identity changed before trial.')
-            row = trial(workspace, output / f'trial-{index + 1}-{label}', label, current, dependencies, env, target=target, budget=budget)
-            checked = post_check(workspace, output / f'trial-{index + 1}-{label}' / 'post-check', driver,
-                                 current, dependencies, env, target, budget)
-            if expected_axioms is None:
-                expected_axioms = checked['axioms']
-            require(checked['axioms'] == expected_axioms, 'Baseline/candidate theorem axiom inventories differ.')
-            row['post_check_axioms'] = checked['axioms']
-            require(package_identity(workspace, env, budget) == packages, 'Package identity changed after trial.')
-            rows.append(row)
-        receipt.update(status='completed', trials=[row['label'] for row in rows],
-                       post_check_axiom_inventory=expected_axioms, summary=summarize(rows))
-        (output / 'summary.json').write_bytes(encode(receipt['summary']))
+        packages = core.package_identity(workspace, env, budget)
+        verify_sources(workspace, manifest, expected)
+        warm = output / 'warm-baseline'
+        warm.mkdir()
+        command = ['/usr/bin/time', '-v', '-o', str(warm / 'time-v.txt'), '--'] + core.sandbox_command(workspace, modules)
+        receipt['cold_baseline_warm_command'] = command
+        started = time.monotonic()
+        with (warm / 'build.log').open('wb') as log:
+            result = subprocess.run(command, cwd=workspace, env=env, stdout=log, stderr=subprocess.STDOUT,
+                                    check=False, timeout=core.timeout_for(budget, 900))
+        receipt.update(cold_baseline_warm_exit_code=result.returncode, cold_baseline_warm_wall_seconds=time.monotonic() - started)
+        if (warm / 'time-v.txt').exists():
+            receipt['cold_baseline_warm_metrics'] = core.time_metrics((warm / 'time-v.txt').read_bytes())
+        require(result.returncode == 0 and receipt.get('cold_baseline_warm_metrics', {}).get('gnu_exit_status') == 0,
+                'Original union warm-up failed.')
+        require(core.package_identity(workspace, env, budget) == packages, 'Warm-up mutated packages.')
+        verify_sources(workspace, manifest, expected)
+        compiled = core.artifact_rows(workspace, exclude_target=False, target=TARGET, budget=budget)
+        for mid in modules:
+            require('.lake/build/lib/lean/' + mid.replace('.', '/') + '.olean' in compiled, 'Missing warm module.')
+        write_new(output / 'warm-compiled-artifacts.json', encode(compiled))
+        receipt.update(package_heads=packages, compiled_artifacts_sha256=digest(encode(compiled)))
+        profile = profile_module(workspace, output / 'profile', manifest, expected, packages, compiled, env, toolchain_bin, budget)
+        receipt['profile'] = profile
+        library = Path(profile['diagnostic_library'])
+        overlay = overlay_dependencies(workspace, library, compiled, manifest, profile['fresh_artifacts'])
+        write_new(output / 'overlay-artifacts.json', encode(overlay))
+        receipt['overlay_artifacts_sha256'] = profile['overlay_artifacts_sha256'] = digest(encode(overlay))
+        (output / 'profile/result.json').write_bytes(encode(profile))
+        receipt['post_check'] = post_check_profile(workspace, output / 'post-check', driver, manifest, expected, packages,
+                                                  compiled, env, toolchain_bin, library, profile['fresh_artifacts'], overlay, budget)
+        verify_seals(workspace, manifest, expected, packages, compiled, env, budget)
+        verify_library(workspace, library, profile['fresh_artifacts'], overlay)
+        receipt['status'] = 'completed'
     except Exception as error:
         receipt.update(status='failed', error_type=type(error).__name__, error=str(error))
         raise
     finally:
-        receipt['files_sha256'] = {str(path.relative_to(output)): digest(path.read_bytes()) for path in sorted(output.rglob('*')) if path.is_file() and path.name != 'receipt.json'}
+        files = {}
+        for path in output.rglob('*'):
+            core.path_checked(path)
+            if path.is_dir() or path == output / 'receipt.json':
+                continue
+            files[path.relative_to(output).as_posix()] = digest(core.regular(path).read_bytes())
+        receipt['files_sha256'] = files
         (output / 'receipt.json').write_bytes(encode(receipt))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=('validate', 'run'))
+    parser.add_argument('action', choices=['validate', 'run'])
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--config-sha256', required=True)
     parser.add_argument('--workspace', type=Path)
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
-    load_config(args.config, args.config_sha256)
-    if args.mode == 'run':
-        require(args.workspace is not None and args.output is not None, 'Run paths missing.')
-        run(args.config, args.config_sha256, args.workspace, args.output)
+    if args.action == 'validate':
+        load_config(args.config, args.config_sha256)
+        print('Exact baseline-only profile bindings validated; no execution performed.')
     else:
-        print('Bound input shapes and hashes validated; no build or mathematical approval.')
+        require(args.workspace is not None and args.output is not None, 'Fresh workspace/output paths required.')
+        run(args.config, args.config_sha256, args.workspace, args.output)
 
 
 if __name__ == '__main__':

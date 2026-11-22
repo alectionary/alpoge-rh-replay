@@ -1,33 +1,34 @@
 {
   "baseline": {
-    "commit": "1b894f7511841e6607bc0398cf2657526bbb29d9",
+    "commit": "291b7446ece6917c5cd959edd98510fdc06947b2",
     "repository": "leanprover-community/riemann-hypothesis"
   },
-  "candidate": {
-    "additional_private_imports": [],
-    "patch_path": "candidate.patch",
-    "patch_sha256": "785a902a3cc24d5bf3ed7c61f6a88ec33babb69587c538c97316600efc3cd1b8",
-    "source_path": "candidate.lean",
-    "source_sha256": "9c16596ce0b47b6c1ba89f4ef834a94d46845bb506d4a24e3f22e95427d8ed3c"
+  "core": {
+    "path": "benchmark_core.py",
+    "sha256": "20fa8da717588e2e07c1bd8a1a9fc58a8ba40fa57dfe81667aeb6732dcf12f9c"
   },
-  "comparison_mode": "baseline_closure_plus_target_patch",
   "execution_repository": "alectionary/alpoge-rh-replay",
   "manifest": {
     "path": "source-manifest.json",
-    "sha256": "de1a6a096cd17a98ba4652c0c40c3c0cbdd522a904a1c94de645a6c7f77d59c0"
+    "sha256": "42bce92d6ff48d8756d421979c17fab82f4eb106d461fa42af53b7a67c361fd8"
   },
-  "order": "ABBAAB",
+  "mode": "baseline_profile_only",
   "post_build_driver": {
     "path": "post-build-check.lean",
     "sha256": "831c1fbcf49ef92d8aff1ce9b95cbd2a78ebd75f135ef44b9f9f9b51651c8625"
   },
+  "profiler": {
+    "arguments": [
+      "--profile",
+      "-Dprofiler.threshold=100"
+    ],
+    "threshold_ms": 100
+  },
   "required_reviews": {
-    "independent_candidate": "c7002da93e70c19c4d7828aa4845f99d3e2dea15acb8e4ac99a449a9d0447410",
-    "independent_method": "45200f932165fdbf4191157c720f3797f327323e7d2abcb05314480d5ad44ff1",
-    "root_candidate": "cdd94b9d3931f53beea4bd475e647113ce46b2c57c7238cc1405daf113c6aad3",
-    "root_method": "82594c5f09d0717d0b072813a651e76c1b8846fa9d2d3f5284071b06e66a16e5"
+    "independent_method": "4b3441149d6a168ec4f83d43b7ad568997650e694704c89619f4ae6fb6ccad99",
+    "root_method": "bd0a0b5ac65f027992554dcd7f7f5037709b2c800c1c226ddc998f580e2844ae"
   },
   "schema_version": 1,
-  "status": "Reviewed bounded DB.pi experiment; no actual compilation or performance result and no canonical PR approval.",
+  "status": "Reviewed unchanged-source profiling diagnostic; no comparative, optimization or source PR approval.",
   "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts"
 }
