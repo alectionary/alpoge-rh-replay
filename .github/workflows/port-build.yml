@@ -23,7 +23,7 @@ concurrency:
 jobs:
   bounded-source-proof-benchmark:
     if: ${{ github.event_name == 'workflow_dispatch' && github.repository_owner == 'alectionary' && github.event.repository.private == false }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
       EXPECTED_HELPER_COMMIT: ${{ inputs.expected_helper_commit }}
