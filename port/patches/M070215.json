@@ -1,0 +1,7 @@
+{
+ "module": "Development.AbelianVarietyTheory.Proofs.InertiaEigenvalues.FinitePlacesInertiaNotFixingFiniteExtensionStatement",
+ "source_sha256": "7e156e4529161778dbf32edc59d6e2e21b82bdbc1e2af29ca5f61ae1686bf3ea",
+ "lean": "leanprover/lean4:v4.36.0",
+ "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+ "notes": "unchanged"
+}
