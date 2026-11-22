@@ -1,0 +1,8 @@
+{
+  "module": "Formalism.DistinguishedUnitIdeals.DistinguishedOrderProofs.Graded",
+  "source_sha256": "e4ef8aca1d4b5b1999457d3f179bd6a4a9d248b900e11792606ab231c67d7301",
+  "lean": "leanprover/lean4:v4.36.0",
+  "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+  "notes": "unchanged",
+  "evidence": "https://github.com/rohanarun/alpoge-rh-replay/issues/34407"
+}
