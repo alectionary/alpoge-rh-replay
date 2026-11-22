@@ -1,0 +1,36 @@
+{
+  "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PadicChangeOfVariables",
+  "source_sha256": "976d0973136b796c8d11d84287241002307292bc9f6f21d08753bd67525cced1",
+  "lean": "leanprover/lean4:v4.36.0",
+  "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+  "notes": "unchanged",
+  "import_semantics": {
+    "scope": "Accepted dependency semantics and exact provenance; not a current contribution audit result or a substitute for literal record notes.",
+    "reference_upstream_commit": "65c11a5133da65c6f0a077aba2c0a0d8749506fd",
+    "accepted_BB_dependency": {
+      "module_id": "M144284",
+      "module": "Formalism.DoubleCosetMeasures.Statement",
+      "original_source_sha256": "02eab37f3d4d4ba211fc3ff70c478ecff9d86e9ecb996209b29be2e4d7be488a",
+      "record_sha256": "77725a7debd94b018ce11736b888266a9a4b7f3d78044d292b9701bf10c2a780",
+      "patch_sha256": "13b1c391c06e4a86e0a9e0fc3b19fea92b4bb34c300e7ff475667a0415051b26",
+      "ported_source_sha256": "f232870a0bb149de3d9bfa9dace5626e1ce10374e903e501a499475692800f21",
+      "owner_notes_sha256": "f237f25ea10b7296d8bb6662302534ed5a1c322e6428f143f11c55b590dbc934",
+      "record_url": "https://github.com/rohanarun/alpoge-rh-replay/blob/65c11a5133da65c6f0a077aba2c0a0d8749506fd/port/patches/M144284.json",
+      "literal_notes_authority": "The exact accepted M144284 notes explain its own guarded BB restoration, own SFinite product contexts and generated equations. This separate target metadata does not amend or replace those notes.",
+      "source_semantics": {
+        "BB": "The accepted definition retains arbitrary measures without an added SFinite hypothesis. Its fixed Prod.mk insertion is measurable in the canonical product measurable space, so the current inner map agrees with the pinned inner map. Its explicit AEMeasurable outer-kernel guard preserves the pinned outer map zero branch; on the other branch bind expands as the old map/join construction.",
+        "BB_eq_prod_of_sfinite": "This helper has its own second-factor SFinite hypothesis. Only in that scope is the guarded product identified with the current Measure.prod. The helper adds no hypothesis to BB.",
+        "IntTwoSided": "Both measures have explicit own SFinite binders, including the right factor. The pinned and current products are equal as measures in that context, transporting the full original Banach-valued integral expression and its total convention.",
+        "generated_equations": "The accepted notes explicitly cover equations exposing the same restored definition. Every equation actually reported by a future audit still requires its complete actual telescope, body where applicable and origin to be reviewed; no generated name or count is asserted here."
+      },
+      "supporting_certificate": {
+        "file": "GuardedProductCertificate.lean",
+        "sha256": "8eb205e139a091957c09ab0fa7bf05e3a7f9703d4d9d36b84c9a59c054080d18",
+        "scope": "Contains both pinned map branches, unconditional guarded-product/pinned-nested-product equality for arbitrary measurable spaces and measures, direct actual-BB definitional/pinned-expansion links, and separate own-SFinite current-product specializations.",
+        "current_validation_requirement": "Must be compiled and axiom-checked against the exact future contribution closure. Generic measure equality must be instantiated directly in any actual retained body whose telescope is broader than a narrower BB wrapper theorem."
+      }
+    },
+    "required_current_review": "Retain both pinned auditors over the full actual eight-module source closure, every raw finding and actual declaration context. Complete independent declaration-local review and matching record-note assessment remain required; this metadata supplies no waiver or publication approval."
+  },
+  "evidence": "https://github.com/rohanarun/alpoge-rh-replay/issues/34045"
+}
