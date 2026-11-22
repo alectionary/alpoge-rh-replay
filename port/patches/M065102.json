@@ -3,6 +3,6 @@
   "source_sha256": "1a10c08e6f869b2c13f52b9de3078ae6e42fd9539063bf60989c21c0ee78e980",
   "lean": "leanprover/lean4:v4.36.0",
   "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
-  "notes": "unchanged",
+  "notes": "Proof-only: make the existing open right-half-plane set explicit for the neighborhood argument in iter; use Finset.prod_le_prod\u2080 for the original nonnegative-factor product inequality with unchanged witnesses. All eight exported statements, hypotheses, imports, scopes and proof-resource defaults are unchanged.",
   "evidence": "https://github.com/rohanarun/alpoge-rh-replay/issues/33334"
 }

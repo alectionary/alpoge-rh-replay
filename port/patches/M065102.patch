@@ -1,0 +1,22 @@
+--- a/src/Development/AbelianVarietyTheory/Proofs/GlobalInterpolation/IteratedDerivLogDerivDirichletLViaNearbyZeros.lean
++++ b/src/Development/AbelianVarietyTheory/Proofs/GlobalInterpolation/IteratedDerivLogDerivDirichletLViaNearbyZeros.lean
+@@ -83,7 +83,9 @@
+     have hev : iteratedDeriv k g =ᶠ[𝓝 s] fun s => (-1) ^ (k + 1) *
+       (LSeries (LSeries.logMul^[k] f) s + k.factorial *
+         (- (e / (s - 1) ^ (k + 1)) + ∑ w ∈ Z, m w / (s - w) ^ (k + 1))) := by
+-      filter_upwards [(isOpen_lt continuous_const continuous_re).mem_nhds hs] with z hz
++      have hopen : IsOpen {z : ℂ | (1 : ℝ) < z.re} :=
++        isOpen_lt continuous_const continuous_re
++      filter_upwards [hopen.mem_nhds hs] with z hz
+       exact ih z hz
+     rw [iteratedDeriv_succ, hev.deriv_eq]
+     have a1 : LSeries.abscissaOfAbsConv (LSeries.logMul^[k] f) < s.re := by
+@@ -126,7 +128,7 @@
+     intro s hs
+     rw [norm_prod]
+     calc _ ≤ ∏ p ∈ q.primeFactors, (p : ℝ) ^ 3 := by
+-          refine Finset.prod_le_prod (fun _ _ => norm_nonneg _) fun p hp => ?_
++          refine Finset.prod_le_prod₀ (fun _ _ => norm_nonneg _) fun p hp => ?_
+           have hp' := Nat.prime_of_mem_primeFactors hp
+           have h2 : (2 : ℝ) ≤ p := by exact_mod_cast hp'.two_le
+           refine (norm_sub_le _ _).trans ?_
