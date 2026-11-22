@@ -3,7 +3,7 @@
   "source_sha256": "f31913eef5bae270d5770190fcde8bba66a3a0363bd4cf4e2f8ec78024772d2a",
   "lean": "leanprover/lean4:v4.36.0",
   "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
-  "notes": "unchanged",
+  "notes": "Proof-only: in Crit.cof_lower, use Finset.prod_le_prod\u2080, the target name for the pinned nonnegative finite-product comparison, with both original witnesses unchanged. No declaration statement, hypothesis, definition, instance, import, scope or proof-resource limit is changed.",
   "evidence": "https://github.com/rohanarun/alpoge-rh-replay/issues/34654",
   "import_semantics": {
     "schema": "M146266-import-semantics-source-preflight-v1",

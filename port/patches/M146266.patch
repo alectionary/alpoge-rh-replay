@@ -1,0 +1,11 @@
+--- a/src/Formalism/HermitianCurvature/HermitianCurvatureProofs/EtaleIntegralityFacts.lean
++++ b/src/Formalism/HermitianCurvature/HermitianCurvatureProofs/EtaleIntegralityFacts.lean
+@@ -1369,7 +1369,7 @@
+   have hprod : δ ^ (m + 1) ≤ ‖∏ k, p.1 k‖ := by
+     rw [norm_prod]
+     calc δ ^ (m + 1) = ∏ _k : Fin (m + 1), δ := by simp
+-      _ ≤ ∏ k, ‖p.1 k‖ := Finset.prod_le_prod (fun _ _ => hδ.le) fun k _ => hxl k
++      _ ≤ ∏ k, ‖p.1 k‖ := Finset.prod_le_prod₀ (fun _ _ => hδ.le) fun k _ => hxl k
+   refine ⟨hprod, ?_⟩
+   have hR : 1 ≤ c * T := by nlinarith
+   have h1 := first_cofactor_norm_le m t p hR ht1 (fun k => (hx k).trans (by nlinarith)) (hy.trans (by nlinarith))
