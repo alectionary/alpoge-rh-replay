@@ -1,0 +1,7 @@
+{
+ "module": "Development.AutomorphicSpectrum.Proofs.BlockDecomposition.SchwartzQuadraticPhaseMultiplicationStatement",
+ "source_sha256": "c8528826dda165fa672028fd0bbed582bf8e156a0adf7f94c67e334e48861685",
+ "lean": "leanprover/lean4:v4.36.0",
+ "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+ "notes": "unchanged"
+}
