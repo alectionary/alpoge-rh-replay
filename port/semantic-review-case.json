@@ -1,0 +1,128 @@
+{
+  "case_id": "M146796",
+  "certificate": {
+    "path": "port/MeasureSideConditionCertificate.lean",
+    "sha256": "814e69a02d3d8447bfcc92f8b860633c8cbbf2f0e044cf9e2a2ebe9bedc517fa"
+  },
+  "pins": {
+    "lean": "leanprover/lean4:v4.36.0",
+    "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+    "replay_pins_unchanged": {
+      "lean": "leanprover/lean4:v4.33.1",
+      "mathlib": "0df444a360eaa60ab8c11dca51a86af692955474"
+    }
+  },
+  "policy": {
+    "audit_script_sha256": "f94052a41bdca049b3e91c9077ccf940b0cc5fe36b3e2767f78a64567ac5aae7",
+    "commit": "3e956370a34018cb518084553ad90befaa8eed1c",
+    "reused_audit_script_sha256": "2e72631b47fccd5b8f7f41f17c634e708566e96f17d8ebc53c86f592745ab5d1"
+  },
+  "project_manifest": [
+    {
+      "id": "M145351",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.AdditiveCharacterPsi",
+      "original_source_sha256": "9570811eb6fd4b3147229716dbe5b6d7a67e7d6de342b2f663967260dd9eea92",
+      "patch_sha256": null,
+      "ported_source_sha256": "9570811eb6fd4b3147229716dbe5b6d7a67e7d6de342b2f663967260dd9eea92",
+      "record_sha256": "98fed9b95c9cbed9bc22c42cc3ccfd0540a8dd6b68ef394b57fc8ffe770e27c9"
+    },
+    {
+      "id": "M145372",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.AffineChangeOfVariables",
+      "original_source_sha256": "588fa3342bb5b1c084c67b99ef769816022744fb1d41383da6f2368cc198d541",
+      "patch_sha256": "080b0ceb641fa69a66360d5059231e58b9ed98ad0fc49b2c043dabec9abbcf5d",
+      "ported_source_sha256": "cad7a402a5ecefc84eb8999948f84e587b00a6cc3e9f0309f81606d3ab888703",
+      "record_sha256": "94c483ee1c7c8eab9a81131e57a250a76f0908781ee13824dfd55ff61931453b"
+    },
+    {
+      "id": "M145556",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.ContinuousInvUpper",
+      "original_source_sha256": "09134b1419472fa1867ffc66bc846a1076a788ab50aef0a21113b09c08891d73",
+      "patch_sha256": "0aa2c41d7650d6bc9a09787df2a5c9cd93e58fe23dfb9bbeea97792192b0c5e8",
+      "ported_source_sha256": "7a847a9108da41b6e33053dca259d870f25f24ebe4944ed9b07192df8f83fc0e",
+      "record_sha256": "320cad233013af8acec4f7a2817abf0d08df320280afa4aad18afc5921f4e5ba"
+    },
+    {
+      "id": "M145580",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep",
+      "original_source_sha256": "5359639cd8cb8490826b0444b82bf2756c6df0c8599389f54ec1a8725f0773c7",
+      "patch_sha256": null,
+      "ported_source_sha256": "5359639cd8cb8490826b0444b82bf2756c6df0c8599389f54ec1a8725f0773c7",
+      "record_sha256": "ef8f917d19756cb989dc306223dfe63a2af31045243c6204bee0d3cafb6059b7"
+    },
+    {
+      "id": "M146320",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.FourierUniquenessMirabolic",
+      "original_source_sha256": "97929a340229639fec7d5174a91971ebed3ec1411eb0859a8e21fddb649440ce",
+      "patch_sha256": null,
+      "ported_source_sha256": "97929a340229639fec7d5174a91971ebed3ec1411eb0859a8e21fddb649440ce",
+      "record_sha256": "8dc97fa1df65a286fef71e9810c00fa4212e761cf3c371dd5d0fbce61c163636"
+    },
+    {
+      "id": "M146727",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.OrbitalIntegralConvergesAbs",
+      "original_source_sha256": "efd4cfd08d8a5a8b535b9fcb2d30ba81fb98998ee50c067e5f1bda044987b1e6",
+      "patch_sha256": "45e72c1bb8f0d5322a17c4afa11e199adcdebd61bf47cf467f851f094f03d76f",
+      "ported_source_sha256": "c711e58bab85afa795783799527db9c364c337972281e7938e737dae83cdc042",
+      "record_sha256": "7169e89e22fbcfa001243736c1e1e65d22b53161488a4b2866af76a6f208db94"
+    },
+    {
+      "id": "M146795",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionCriticalPoints",
+      "original_source_sha256": "4bb48c936aa8952768f8691ffadde31239a39154453ab999cff7295483c5ac5e",
+      "patch_sha256": null,
+      "ported_source_sha256": "4bb48c936aa8952768f8691ffadde31239a39154453ab999cff7295483c5ac5e",
+      "record_sha256": "3db6e2552d789bf531ee4f182f8bcc991c19f4790a81af39d01035f6e4665d8e"
+    },
+    {
+      "id": "M146796",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives",
+      "original_source_sha256": "aa1be1cde81f8e335d28641d75e7cd4a9a218058cfce5063ec5e1325d6051acc",
+      "patch_sha256": "c022be8050c4801e0f20dd93123ee4f0d108d8a24495614f12022f8971558927",
+      "ported_source_sha256": "effb745259cbe6fb0731da75b3eaa464aecde295d93accb1f8edbfe167b7b63b",
+      "record_sha256": "b7d0cb7391ccb27bdcf327fbf78d9336e847cf551a7d66b7cf3dafe02573e924"
+    },
+    {
+      "id": "M146895",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper",
+      "original_source_sha256": "3c853dc2418447bc39994b136dced76ccf18636cfde720661a7cfd3a40d7046e",
+      "patch_sha256": null,
+      "ported_source_sha256": "3c853dc2418447bc39994b136dced76ccf18636cfde720661a7cfd3a40d7046e",
+      "record_sha256": "d6a023a9ea55b6017ddddd0974480d31156469c528af9cb6869bda1328c9b1fe"
+    },
+    {
+      "id": "M147014",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.StabilizerBlockPoint",
+      "original_source_sha256": "34e85cbeda458acfb27d14ca9ed06a55ad6e1271b360e801ad666e436624af5a",
+      "patch_sha256": null,
+      "ported_source_sha256": "34e85cbeda458acfb27d14ca9ed06a55ad6e1271b360e801ad666e436624af5a",
+      "record_sha256": "4120fd907f59ac04deac3edba0fa6056e3547efee108d62c8738ee384e7a1184"
+    },
+    {
+      "id": "M147219",
+      "module": "Formalism.HermitianCurvature.StatementG",
+      "original_source_sha256": "d41a30622cc580ec30a006df65d2caf4ec6e632dd28de0947f982b12798c0abb",
+      "patch_sha256": null,
+      "ported_source_sha256": "d41a30622cc580ec30a006df65d2caf4ec6e632dd28de0947f982b12798c0abb",
+      "record_sha256": "099acb0ff9f0c643baa76bb0fcd216d6f23b82c5ee1f2410ff098c7f3840ade2"
+    }
+  ],
+  "required_closure": {
+    "M145351": "Formalism.HermitianCurvature.HermitianCurvatureProofs.AdditiveCharacterPsi",
+    "M145372": "Formalism.HermitianCurvature.HermitianCurvatureProofs.AffineChangeOfVariables",
+    "M145556": "Formalism.HermitianCurvature.HermitianCurvatureProofs.ContinuousInvUpper",
+    "M145580": "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep",
+    "M146320": "Formalism.HermitianCurvature.HermitianCurvatureProofs.FourierUniquenessMirabolic",
+    "M146727": "Formalism.HermitianCurvature.HermitianCurvatureProofs.OrbitalIntegralConvergesAbs",
+    "M146795": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionCriticalPoints",
+    "M146796": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives",
+    "M146895": "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper",
+    "M147014": "Formalism.HermitianCurvature.HermitianCurvatureProofs.StabilizerBlockPoint",
+    "M147219": "Formalism.HermitianCurvature.StatementG"
+  },
+  "schema_version": 4,
+  "source_commit": "d6cadd7c32895202613152738a6634d5ed01d977",
+  "target_ids": [
+    "M146796"
+  ]
+}
