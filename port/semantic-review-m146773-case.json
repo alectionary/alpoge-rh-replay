@@ -1,0 +1,101 @@
+{
+  "case_id": "M146773",
+  "certificate": {
+    "path": "port/GuardedProductCertificate.lean",
+    "sha256": "8eb205e139a091957c09ab0fa7bf05e3a7f9703d4d9d36b84c9a59c054080d18"
+  },
+  "pins": {
+    "lean": "leanprover/lean4:v4.36.0",
+    "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+    "replay_pins_unchanged": {
+      "lean": "leanprover/lean4:v4.33.1",
+      "mathlib": "0df444a360eaa60ab8c11dca51a86af692955474"
+    }
+  },
+  "policy": {
+    "audit_script_sha256": "f94052a41bdca049b3e91c9077ccf940b0cc5fe36b3e2767f78a64567ac5aae7",
+    "commit": "3e956370a34018cb518084553ad90befaa8eed1c",
+    "reused_audit_script_sha256": "2e72631b47fccd5b8f7f41f17c634e708566e96f17d8ebc53c86f592745ab5d1"
+  },
+  "project_manifest": [
+    {
+      "id": "M144279",
+      "module": "Formalism.DoubleCosetMeasures.LowerUnipotentOrbits.LowUniMulVecELast",
+      "original_source_sha256": "c8564979f9926720de0079de4559848c5fb1ecc031322069073409337d3f23d8",
+      "patch_sha256": null,
+      "ported_source_sha256": "c8564979f9926720de0079de4559848c5fb1ecc031322069073409337d3f23d8",
+      "record_sha256": "5508e7bc3288fd48777efda490f8045156627cb6a6a52f28c588cfbb9337ccbf"
+    },
+    {
+      "id": "M144281",
+      "module": "Formalism.DoubleCosetMeasures.LowerUnipotentOrbits.MulInvBlockDiagApplySameBlock",
+      "original_source_sha256": "52236547bf222b6f971ed9d386bdf410467cfe7f954479b5494368fbaf7a47ad",
+      "patch_sha256": null,
+      "ported_source_sha256": "52236547bf222b6f971ed9d386bdf410467cfe7f954479b5494368fbaf7a47ad",
+      "record_sha256": "5f4eccec1cf70621931d3fdad54207109d86909fb63d9103eb57890a7e214f87"
+    },
+    {
+      "id": "M144284",
+      "module": "Formalism.DoubleCosetMeasures.Statement",
+      "original_source_sha256": "02eab37f3d4d4ba211fc3ff70c478ecff9d86e9ecb996209b29be2e4d7be488a",
+      "patch_sha256": "13b1c391c06e4a86e0a9e0fc3b19fea92b4bb34c300e7ff475667a0415051b26",
+      "ported_source_sha256": "f232870a0bb149de3d9bfa9dace5626e1ce10374e903e501a499475692800f21",
+      "record_sha256": "77725a7debd94b018ce11736b888266a9a4b7f3d78044d292b9701bf10c2a780"
+    },
+    {
+      "id": "M145337",
+      "module": "Formalism.HermitianCurvature.BlockKernelPropertiesOfSteps",
+      "original_source_sha256": "b91f98f2740e656a565a9d0946c6033e23c15676b1fc8920b7e20eddb28acb47",
+      "patch_sha256": null,
+      "ported_source_sha256": "b91f98f2740e656a565a9d0946c6033e23c15676b1fc8920b7e20eddb28acb47",
+      "record_sha256": "408f5e41a59915f259f77d796e88b417c288b9d689b98627c376a08500fa2619"
+    },
+    {
+      "id": "M146475",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.IntegralLatticeRefinementIdentity",
+      "original_source_sha256": "1f62a75214447e8ac1ed271c2e35ca510b3ed126197dac99a17651f659b90e6e",
+      "patch_sha256": null,
+      "ported_source_sha256": "1f62a75214447e8ac1ed271c2e35ca510b3ed126197dac99a17651f659b90e6e",
+      "record_sha256": "bbec827531928ab39f0e02e6e4d5cda4bae68cc6cc38e4322d66fb1d4301f187"
+    },
+    {
+      "id": "M146511",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.KernelNonzeroModulusDeterminantEq",
+      "original_source_sha256": "e5dbe8de5d6cfb92b78bb97e3ee04a4a9a12800fe51580092fd15a62e1287f92",
+      "patch_sha256": "08da2213a1a73e0d47dc58e2602c35108bc6807666c35d92d7835d5f21f47578",
+      "ported_source_sha256": "12b0e49890de2e4b191688a4c6fda75565cc4bf2ad00cc52046c0784372ef961",
+      "record_sha256": "66060c4b593e8c51388f69f7ccf6cec5ec7ee9bb9666e214764942493fff8d03"
+    },
+    {
+      "id": "M146773",
+      "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PadicChangeOfVariables",
+      "original_source_sha256": "976d0973136b796c8d11d84287241002307292bc9f6f21d08753bd67525cced1",
+      "patch_sha256": null,
+      "ported_source_sha256": "976d0973136b796c8d11d84287241002307292bc9f6f21d08753bd67525cced1",
+      "record_sha256": "bae07c3b67ac9f31d82746d47d5bc4f9e24e34c70c6091659e0a5f37e50d86a4"
+    },
+    {
+      "id": "M147251",
+      "module": "Formalism.HermitianCurvature.ThetaExistenceInductiveFromPieces",
+      "original_source_sha256": "774ed1c6403ef49ab1fc05cc392db51e0ea330f49f0a91af8895711ff462bbac",
+      "patch_sha256": null,
+      "ported_source_sha256": "774ed1c6403ef49ab1fc05cc392db51e0ea330f49f0a91af8895711ff462bbac",
+      "record_sha256": "b3709e5080255b71a70c3f6167abcdbf2dd46249dd7208e6051b1a028c64d925"
+    }
+  ],
+  "required_closure": {
+    "M144279": "Formalism.DoubleCosetMeasures.LowerUnipotentOrbits.LowUniMulVecELast",
+    "M144281": "Formalism.DoubleCosetMeasures.LowerUnipotentOrbits.MulInvBlockDiagApplySameBlock",
+    "M144284": "Formalism.DoubleCosetMeasures.Statement",
+    "M145337": "Formalism.HermitianCurvature.BlockKernelPropertiesOfSteps",
+    "M146475": "Formalism.HermitianCurvature.HermitianCurvatureProofs.IntegralLatticeRefinementIdentity",
+    "M146511": "Formalism.HermitianCurvature.HermitianCurvatureProofs.KernelNonzeroModulusDeterminantEq",
+    "M146773": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PadicChangeOfVariables",
+    "M147251": "Formalism.HermitianCurvature.ThetaExistenceInductiveFromPieces"
+  },
+  "schema_version": 4,
+  "source_commit": "a1b8d950313aaafa056e0f7579c8344a74c47141",
+  "target_ids": [
+    "M146773"
+  ]
+}
