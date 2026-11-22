@@ -1,0 +1,8 @@
+{
+  "module": "Formalism.PeriodIntegrals.UnitaryGroupMassFormula.LocalUnitaryOrbits.FFInert2Holds",
+  "source_sha256": "fe1d71ab6b5e1b4d55f63d23b831f5c65738f288713adf4c4b5d1333f1536846",
+  "lean": "leanprover/lean4:v4.36.0",
+  "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
+  "notes": "unchanged",
+  "evidence": "https://github.com/rohanarun/alpoge-rh-replay/issues/33577"
+}
