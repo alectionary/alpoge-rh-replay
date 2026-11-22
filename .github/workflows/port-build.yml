@@ -1,26 +1,37 @@
-name: Port build check
-run-name: Semantic audit ${{ inputs.source_commit }}
+name: Semantic review evidence v3 (proposal)
+run-name: Semantic review facts ${{ inputs.source_commit }}
 on:
   workflow_dispatch:
     inputs:
       source_commit:
-        description: Exact contribution commit to build and audit
+        description: Exact repaired contribution commit
         required: true
         type: string
       patch_ids:
-        description: Space-separated module IDs
+        description: Complete root module IDs, space-separated
+        required: true
+        type: string
+      expected_helper_commit:
+        description: Exact externally pinned helper commit containing this workflow and certificate
         required: true
         type: string
 permissions:
   contents: read
 env:
   AUDIT_SOURCE_COMMIT: ${{ inputs.source_commit }}
+  EXPECTED_SOURCE_COMMIT: a9e7798f546abebfc828aae533ecd625598da7bb
+  EXPECTED_HELPER_COMMIT: ${{ inputs.expected_helper_commit }}
   PATCH_IDS: ${{ inputs.patch_ids }}
   AUDIT_POLICY_COMMIT: 3e956370a34018cb518084553ad90befaa8eed1c
   AUDIT_SCRIPT_SHA256: f94052a41bdca049b3e91c9077ccf940b0cc5fe36b3e2767f78a64567ac5aae7
   REUSED_AUDIT_SCRIPT_SHA256: 2e72631b47fccd5b8f7f41f17c634e708566e96f17d8ebc53c86f592745ab5d1
+  CERTIFICATE_PATH: port/GuardedProductCertificate.lean
+  CERTIFICATE_SHA256: 8eb205e139a091957c09ab0fa7bf05e3a7f9703d4d9d36b84c9a59c054080d18
+  CERTIFIED_PORTED_SHA256: '{"M144284":"f232870a0bb149de3d9bfa9dace5626e1ce10374e903e501a499475692800f21","M144277":"daeb82ed690b4c236ccc3a73c99ad64d00831987e8d2b50c3146118415cb0174"}'
+  EXPECTED_TARGET_IDS: '["M144277","M144283","M144284","M146943"]'
+  EXPECTED_CLOSURE: '{"M144277":"Formalism.DoubleCosetMeasures.LowerUnipotentOrbits.IsOpenIsIntSet","M144283":"Formalism.DoubleCosetMeasures.LowerUnipotentOrbits.TwoSided","M144284":"Formalism.DoubleCosetMeasures.Statement","M146943":"Formalism.HermitianCurvature.HermitianCurvatureProofs.SecondKernelPropertyKernel","M147213":"Formalism.HermitianCurvature.StatementA"}'
 jobs:
-  semantic-audit:
+  collect-semantic-review-facts:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -38,44 +49,102 @@ jobs:
           path: policy
           fetch-depth: 1
           persist-credentials: false
-      - name: Verify exact source, policy, pins and module manifest
-        working-directory: source
+      - uses: actions/checkout@v4
+        with:
+          repository: alectionary/alpoge-rh-replay
+          ref: ${{ inputs.expected_helper_commit }}
+          path: helper
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact source, immutable helper, certificate, auditors, pins and closure
+        id: prepare
         run: |
           python3 - <<'PY'
           import gzip, hashlib, json, os, re, subprocess
           from pathlib import Path
-          actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-          assert re.fullmatch(r"[0-9a-f]{40}", os.environ["AUDIT_SOURCE_COMMIT"])
-          assert actual == os.environ["AUDIT_SOURCE_COMMIT"]
-          policy = Path("../policy").resolve()
-          policy_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=policy, text=True).strip()
-          assert policy_sha == os.environ["AUDIT_POLICY_COMMIT"]
-          script_sha = hashlib.sha256((policy / "port/islattice_audit.lean").read_bytes()).hexdigest()
-          assert script_sha == os.environ["AUDIT_SCRIPT_SHA256"]
-          reused_sha = hashlib.sha256((policy / "port/reused_audit.lean").read_bytes()).hexdigest()
-          assert reused_sha == os.environ["REUSED_AUDIT_SCRIPT_SHA256"]
-          pins = json.loads(Path("port/target.json").read_text())
+          
+          out = Path(os.environ["RUNNER_TEMP"]) / "semantic-review-v3"
+          out.mkdir()
+          root = Path(os.environ["GITHUB_WORKSPACE"])
+          source, policy, helper = (root / name for name in ("source", "policy", "helper"))
+          sha = lambda b: hashlib.sha256(b).hexdigest()
+          head = lambda directory: subprocess.check_output(
+              ["git", "rev-parse", "HEAD"], cwd=directory, text=True).strip()
+          expected_helper = os.environ["EXPECTED_HELPER_COMMIT"]
+          source_commit = os.environ["AUDIT_SOURCE_COMMIT"]
+          assert os.environ["GITHUB_REPOSITORY"] == "alectionary/alpoge-rh-replay"
+          assert re.fullmatch(r"[0-9a-f]{40}", expected_helper)
+          assert re.fullmatch(r"[0-9a-f]{40}", source_commit)
+          assert source_commit == os.environ["EXPECTED_SOURCE_COMMIT"]
+          assert head(helper) == expected_helper == os.environ["GITHUB_SHA"]
+          assert head(source) == source_commit
+          assert head(policy) == os.environ["AUDIT_POLICY_COMMIT"]
+          auditors = {
+              "islattice": ("port/islattice_audit.lean", "AUDIT_SCRIPT_SHA256"),
+              "reused": ("port/reused_audit.lean", "REUSED_AUDIT_SCRIPT_SHA256"),
+          }
+          for path, variable in auditors.values():
+              assert sha((policy / path).read_bytes()) == os.environ[variable]
+          certificate = helper / os.environ["CERTIFICATE_PATH"]
+          assert sha(certificate.read_bytes()) == os.environ["CERTIFICATE_SHA256"]
+          pins = json.loads((source / "port/target.json").read_text())
           assert pins["lean"] == "leanprover/lean4:v4.36.0"
           assert pins["mathlib"] == "fc4f59e577feb1a4956671bc04ac18aaaf8cd842"
           ids = os.environ["PATCH_IDS"].split()
-          assert ids and all(re.fullmatch(r"M[0-9]{6}", mid) for mid in ids)
-          rows = {r["id"]: r for r in map(json.loads, gzip.open("tracker/modules.jsonl.gz", "rt"))}
-          closure = set()
-          def include(mid):
+          assert ids and len(ids) == len(set(ids))
+          assert all(re.fullmatch(r"M[0-9]{6}", mid) for mid in ids)
+          expected_ids = json.loads(os.environ["EXPECTED_TARGET_IDS"])
+          assert sorted(ids) == expected_ids
+          rows = {r["id"]: r for r in map(json.loads,
+                  gzip.open(source / "tracker/modules.jsonl.gz", "rt"))}
+          closure, pending = set(), list(ids)
+          while pending:
+              mid = pending.pop()
               if mid in closure:
-                  return
-              assert Path("port/patches", mid + ".json").is_file(), mid
+                  continue
+              row = rows[mid]
+              record_path = source / "port/patches" / (mid + ".json")
+              record = json.loads(record_path.read_text())
+              assert record["module"] == row["module"]
+              assert record["source_sha256"] == row["source_sha256"]
+              assert record["lean"] == pins["lean"] and record["mathlib"] == pins["mathlib"]
               closure.add(mid)
-              for dependency in rows[mid]["imports"]:
-                  include(dependency)
-          for mid in ids:
-              include(mid)
-          manifest = [{"id": mid, "module": rows[mid]["module"]} for mid in sorted(closure)]
-          (Path(os.environ["RUNNER_TEMP"]) / "port-semantic-manifest.json").write_text(json.dumps(manifest))
-          print("[AUDIT_SOURCE]", actual, flush=True)
-          print("[AUDIT_POLICY]", policy_sha, flush=True)
-          print("[AUDIT_SCRIPT_SHA256]", script_sha, flush=True)
-          print("[REUSED_AUDIT_SCRIPT_SHA256]", reused_sha, flush=True)
+              pending.extend(row["imports"])
+          expected_closure = json.loads(os.environ["EXPECTED_CLOSURE"])
+          assert {mid: rows[mid]["module"] for mid in sorted(closure)} == expected_closure
+          manifest = []
+          for mid in sorted(closure):
+              row = rows[mid]
+              patch = source / "port/patches" / (mid + ".patch")
+              manifest.append(dict(id=mid, module=row["module"],
+                  original_source_sha256=row["source_sha256"],
+                  record_sha256=sha((source / "port/patches" / (mid + ".json")).read_bytes()),
+                  patch_sha256=sha(patch.read_bytes()) if patch.exists() else None))
+          expected_ported = json.loads(os.environ["CERTIFIED_PORTED_SHA256"])
+          assert set(expected_ported) <= closure
+          profile = dict(helper_commit=expected_helper,
+              expected_source_commit=os.environ["EXPECTED_SOURCE_COMMIT"],
+              required_target_ids=expected_ids, required_closure=expected_closure,
+              policy_commit=os.environ["AUDIT_POLICY_COMMIT"],
+              audit_script_sha256=os.environ["AUDIT_SCRIPT_SHA256"],
+              reused_audit_script_sha256=os.environ["REUSED_AUDIT_SCRIPT_SHA256"],
+              certificate_path=os.environ["CERTIFICATE_PATH"],
+              certificate_sha256=os.environ["CERTIFICATE_SHA256"],
+              certified_ported_source_sha256=expected_ported,
+              lean=pins["lean"], mathlib=pins["mathlib"])
+          run_id = int(os.environ["GITHUB_RUN_ID"])
+          facts = dict(schema_version=3, source_commit=source_commit,
+              run_id=run_id, run_attempt=int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              run_url="https://github.com/alectionary/alpoge-rh-replay/actions/runs/" + str(run_id),
+              workflow_ref=os.environ["GITHUB_WORKFLOW_REF"],
+              target_ids=sorted(ids), profile=profile, project_manifest=manifest)
+          (out / "inputs.json").write_text(json.dumps(facts, indent=2) + "\n")
+          print("[AUDIT_SOURCE]", source_commit, flush=True)
+          print("[AUDIT_HELPER]", expected_helper, flush=True)
+          print("[AUDIT_POLICY]", profile["policy_commit"], flush=True)
+          print("[AUDIT_SCRIPT_SHA256]", profile["audit_script_sha256"], flush=True)
+          print("[REUSED_AUDIT_SCRIPT_SHA256]", profile["reused_audit_script_sha256"], flush=True)
+          print("[CERTIFICATE_SHA256]", profile["certificate_sha256"], flush=True)
           for row in manifest:
               print("[AUDIT_MODULE]", row["id"], row["module"], flush=True)
           PY
@@ -93,6 +162,7 @@ jobs:
           lean --version
           lake --version
       - name: Build the exact contribution and verified project imports
+        id: build
         working-directory: source
         run: |
           read -r -a ids <<< "$PATCH_IDS"
@@ -100,35 +170,464 @@ jobs:
             --workspace "$RUNNER_TEMP/port-semantic-workspace" \
             --setup-lake \
             --patch-ids "${ids[@]}"
-      - name: Audit elaborated types, definitions and opaque bodies with both policy scripts
+      - name: Run both unchanged auditors on every project module and preserve all findings
+        id: audits
         run: |
           python3 - <<'PY'
-          import hashlib, json, os, subprocess
+          import hashlib, json, os, re, subprocess
           from pathlib import Path
+          
+          sha = lambda b: hashlib.sha256(b).hexdigest()
+          out = Path(os.environ["RUNNER_TEMP"]) / "semantic-review-v3"
           workspace = Path(os.environ["RUNNER_TEMP"]) / "port-semantic-workspace"
           policy = Path(os.environ["GITHUB_WORKSPACE"]) / "policy"
-          manifest = json.loads((Path(os.environ["RUNNER_TEMP"]) / "port-semantic-manifest.json").read_text())
-          auditors = [
-              ("islattice", policy / "port/islattice_audit.lean", "AUDIT_SCRIPT_SHA256"),
-              ("reused", policy / "port/reused_audit.lean", "REUSED_AUDIT_SCRIPT_SHA256"),
-          ]
-          for kind, auditor, digest_env in auditors:
-              assert hashlib.sha256(auditor.read_bytes()).hexdigest() == os.environ[digest_env]
-          failures = []
-          for row in manifest:
+          inputs = json.loads((out / "inputs.json").read_text())
+          auditors = {
+              "islattice": (policy / "port/islattice_audit.lean", "audit_script_sha256"),
+              "reused": (policy / "port/reused_audit.lean", "reused_audit_script_sha256"),
+          }
+          constants = {
+              "Submodule.IsLattice", "IsAddTorsionFree", "IsMulTorsionFree",
+              "MeasureTheory.eLpNorm", "MeasureTheory.NoAtoms", "multiplicity",
+              "MeasureTheory.Measure.map", "MeasureTheory.Measure.prod", "ModularForm.L",
+          }
+          
+          def parse_auditor(kind, mid, module, code, stdout, stderr, source_commit):
+              # Validate the unmodified pinned script's real count and status. Every raw
+              # stream is retained independently; no declaration-name allowlist exists.
+              assert code in (0, 1), "auditor error/exception/nonstandard exit"
+              lines = stdout.splitlines()
+              summary = re.compile(re.escape(kind) + r"-audit: 1 module\(s\), ([0-9]+) hit\(s\)")
+              summaries = [m for line in lines if (m := summary.fullmatch(line))]
+              assert len(summaries) == 1
+              assert sum(line.startswith(kind + "-audit:") for line in lines) == 1
+              assert not any(kind + "-audit:" in line or
+                             (" uses " in line and " in its " in line) for line in stderr.splitlines())
+              findings, other = [], []
+              if kind == "islattice":
+                  pattern = re.compile(re.escape(module) +
+                      r": (.+) uses (Submodule\.IsLattice) in its (statement|definition body)")
+              else:
+                  pattern = re.compile(re.escape(module) +
+                      r": (.+) uses (\S+) in its (statement|definition body) \((.*)\)")
+              for line in lines:
+                  if summary.fullmatch(line):
+                      continue
+                  match = pattern.fullmatch(line)
+                  if match:
+                      declaration, constant, location = match.group(1, 2, 3)
+                      assert constant in constants
+                      index = len(findings)
+                      identity = json.dumps([source_commit, kind, mid, index, line],
+                                            ensure_ascii=False, separators=(",", ":"))
+                      findings.append(dict(finding_id=sha(identity.encode()),
+                          module_id=mid, module=module, auditor=kind, declaration=declaration,
+                          constant=constant, location=location,
+                          reason=match.group(4) if kind == "reused" else None,
+                          raw_line=line, occurrence=index))
+                  else:
+                      assert not line.startswith(module + ":")
+                      assert not (" uses " in line and " in its " in line)
+                      other.append(line)
+              count = int(summaries[0].group(1))
+              assert count == len(findings)
+              assert (code == 0 and count == 0) or (code == 1 and count > 0)
+              return dict(summary_line=summaries[0].group(0), reported_hits=count,
+                          findings=findings, other_stdout_lines=other)
+          
+          for kind, (script, key) in auditors.items():
+              assert sha(script.read_bytes()) == inputs["profile"][key]
+          manifest, results, errors = [], [], []
+          for row in inputs["project_manifest"]:
+              row = dict(row)
               obj = workspace / (".lake/build/lib/lean/" + row["module"].replace(".", "/") + ".olean")
-              assert obj.is_file(), obj
-              print("[AUDIT_OBJECT]", row["id"], hashlib.sha256(obj.read_bytes()).hexdigest(), flush=True)
-              for kind, auditor, _ in auditors:
+              source = workspace / ("src/" + row["module"].replace(".", "/") + ".lean")
+              row["object_sha256"] = sha(obj.read_bytes()) if obj.is_file() else None
+              row["ported_source_sha256"] = sha(source.read_bytes()) if source.is_file() else None
+              if not obj.is_file() or not source.is_file():
+                  errors.append(dict(module_id=row["id"], error="missing built object or source"))
+              manifest.append(row)
+              print("[AUDIT_OBJECT]", row["id"], row["object_sha256"], flush=True)
+              for kind, (script, _) in auditors.items():
+                  stem = out / (kind + "-" + row["id"])
                   print("[AUDIT_BEGIN]", kind, row["id"], row["module"], flush=True)
-                  result = subprocess.run(["lake", "env", "lean", "--run", str(auditor), row["module"]],
-                                          cwd=workspace)
-                  print("[AUDIT_END]", kind, row["id"], result.returncode, flush=True)
-                  if result.returncode != 0:
-                      failures.append((kind, row["id"], result.returncode))
-          if failures:
-              raise SystemExit("SEMANTIC_AUDITS_FAILED " + repr(failures))
-          print("ISLATTICE_AUDIT_PASSED all", len(manifest), "module(s).", flush=True)
-          print("REUSED_AUDIT_PASSED all", len(manifest), "module(s).", flush=True)
-          print("SEMANTIC_AUDITS_PASSED all", len(manifest), "module(s), both auditors.", flush=True)
+                  result = dict(auditor=kind, module_id=row["id"], module=row["module"],
+                                object_sha256=row["object_sha256"])
+                  try:
+                      run = subprocess.run(["lake", "env", "lean", "--run", str(script), row["module"]],
+                          cwd=workspace, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                      stdout, stderr, code = run.stdout, run.stderr, run.returncode
+                      result["exit_code"] = code
+                  except Exception as exc:
+                      stdout, stderr, code = b"", repr(exc).encode(), None
+                      result.update(exit_code=None, invocation_exception=repr(exc))
+                  for channel, data in (("stdout", stdout), ("stderr", stderr)):
+                      name = stem.name + "." + channel + ".log"
+                      (out / name).write_bytes(data)
+                      result[channel] = dict(path=name, sha256=sha(data), bytes=len(data))
+                      print("[AUDIT_RAW_BEGIN]", kind, row["id"], channel, flush=True)
+                      print(data.decode("utf-8", errors="replace"), end="", flush=True)
+                      if data and not data.endswith(b"\n"):
+                          print(flush=True)
+                      print("[AUDIT_RAW_END]", kind, row["id"], channel, flush=True)
+                  try:
+                      parsed = parse_auditor(kind, row["id"], row["module"], code,
+                                            stdout.decode("utf-8"), stderr.decode("utf-8"),
+                                            inputs["source_commit"])
+                      result.update(parsed, operational_status="completed")
+                  except Exception as exc:
+                      result.update(operational_status="error", validation_error=repr(exc))
+                      errors.append(dict(auditor=kind, module_id=row["id"], exit_code=code,
+                                         error=repr(exc)))
+                  print("[AUDIT_END]", kind, row["id"], code, flush=True)
+                  (out / (stem.name + ".json")).write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n")
+                  results.append(result)
+          # Persist every completed invocation, including errors, before failing the step.
+          findings = [finding for result in results for finding in result.get("findings", [])]
+          facts = dict(inputs, project_manifest=manifest, auditor_results=results,
+              findings=findings, finding_count=len(findings), operational_errors=errors,
+              audit_status="error" if errors else
+                  ("completed_with_findings" if findings else "completed_no_findings"))
+          (out / "audit-facts.json").write_text(json.dumps(facts, indent=2, ensure_ascii=False) + "\n")
+          assert len(results) == 2 * len(manifest)
+          if errors:
+              raise SystemExit("AUDIT_OPERATIONAL_ERROR " + repr(errors))
+          if findings:
+              print("AUDITS_COMPLETED_WITH_FINDINGS", len(manifest), "module(s),",
+                    len(findings), "retained finding(s).", flush=True)
+              print("REVIEW_REQUIRED", len(findings), "source-bound finding(s).", flush=True)
+          else:
+              print("AUDITS_COMPLETED_NO_FINDINGS", len(manifest), "module(s).", flush=True)
+          # Neither branch emits a v1/v2 zero-hit pass or an approval marker.
           PY
+      - name: Extract actual type, retained body and module origin for every finding
+        id: declaration-contexts
+        if: ${{ always() && steps.prepare.outcome == 'success' && steps.build.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, re, subprocess
+          from pathlib import Path
+          
+          sha = lambda b: hashlib.sha256(b).hexdigest()
+          out = Path(os.environ["RUNNER_TEMP"]) / "semantic-review-v3"
+          workspace = Path(os.environ["RUNNER_TEMP"]) / "port-semantic-workspace"
+          audit_bytes = (out / "audit-facts.json").read_bytes()
+          audit = json.loads(audit_bytes)
+          required = audit["profile"]["required_closure"]
+          assert {row["id"]: row["module"] for row in audit["project_manifest"]} == required
+          imports = "import Lean\n" + "".join("import " + name + "\n" for name in required.values())
+          # Only these diagnostic files receive pretty-printing options. Project sources,
+          # the certificate and Lean's resource limits are unchanged.
+          imports += "\nset_option pp.all true\nset_option pp.proofs true\nset_option pp.fullNames true\n"
+          template = r'''
+          open Lean in
+          run_cmd do
+            let findingId : String := __FINDING__
+            let reportedModule : String := __MODULE__
+            let declarationText : String := __DECLARATION__
+            let needsBody : Bool := __NEEDS_BODY__
+            let directory := System.FilePath.mk __DIRECTORY__
+            let env ← getEnv
+            let some idx := env.getModuleIdx? reportedModule.toName
+              | throwError "Unresolved reported module {reportedModule}"
+            let owned := env.header.moduleData[idx.toNat]!.constNames
+            let some target := owned.find? (fun name => name.toString == declarationText)
+              | throwError "Declaration {declarationText} is not owned by {reportedModule}"
+            let some actualIdx := env.getModuleIdxFor? target
+              | throwError "No actual origin for {target}"
+            unless actualIdx.toNat == idx.toNat do
+              throwError "Declaration origin differs from reported module: {target}"
+            let some ci := env.find? target
+              | throwError "Missing actual ConstantInfo: {target}"
+            let typeFormat ← Lean.Elab.Command.liftTermElabM (Lean.Meta.ppExpr ci.type)
+            let typePretty := toString typeFormat
+            let typeExpr := reprStr ci.type
+            let kind := match ci with
+              | .defnInfo _ => "definition"
+              | .opaqueInfo _ => "opaque"
+              | .thmInfo _ => "theorem"
+              | _ => "other"
+            let value : Option Expr := match ci with
+              | .defnInfo d => some d.value
+              | .opaqueInfo d => some d.value
+              | _ => none
+            liftIO <| IO.FS.writeFile (directory / "type.expr.txt") (typeExpr ++ "\n")
+            liftIO <| IO.FS.writeFile (directory / "type.pretty.txt") (typePretty ++ "\n")
+            let metadata := Json.mkObj [
+              ("finding_id", toJson findingId),
+              ("reported_module", toJson reportedModule),
+              ("resolved_declaration", toJson target.toString),
+              ("reported_module_index", toJson idx.toNat),
+              ("actual_origin_module_index", toJson actualIdx.toNat),
+              ("module_owned_constNames_membership_checked", toJson true),
+              ("origin_matches_reported_module", toJson true),
+              ("constant_kind", toJson kind),
+              ("body_required", toJson needsBody)]
+            liftIO <| IO.println s!"[DECL_CONTEXT_BEGIN] {findingId}"
+            liftIO <| IO.println s!"[DECL_CONTEXT_ORIGIN] {metadata.compress}"
+            liftIO <| IO.println s!"[DECL_TYPE_BEGIN] {findingId}"
+            liftIO <| IO.println typePretty
+            liftIO <| IO.println s!"[DECL_TYPE_END] {findingId}"
+            if needsBody then
+              let some body := value
+                | throwError "Body finding lacks a definition/opaque value: {target}"
+              let bodyFormat ← Lean.Elab.Command.liftTermElabM (Lean.Meta.ppExpr body)
+              let bodyPretty := toString bodyFormat
+              liftIO <| IO.FS.writeFile (directory / "value.expr.txt") (reprStr body ++ "\n")
+              liftIO <| IO.FS.writeFile (directory / "value.pretty.txt") (bodyPretty ++ "\n")
+              liftIO <| IO.println s!"[DECL_VALUE_BEGIN] {findingId}"
+              liftIO <| IO.println bodyPretty
+              liftIO <| IO.println s!"[DECL_VALUE_END] {findingId}"
+            liftIO <| IO.FS.writeFile (directory / "lean-metadata.json") (metadata.compress ++ "\n")
+            liftIO <| IO.println s!"[DECL_CONTEXT_END] {findingId}"
+          '''
+          results, errors = [], []
+          findings = audit["findings"]
+          assert len(findings) == audit["finding_count"]
+          assert len({finding["finding_id"] for finding in findings}) == len(findings)
+          for finding in findings:
+              identity = finding["finding_id"]
+              assert re.fullmatch(r"[0-9a-f]{64}", identity)
+              assert required[finding["module_id"]] == finding["module"]
+              assert finding["location"] in ("statement", "definition body")
+              directory = out / "contexts" / identity
+              directory.mkdir(parents=True)
+              driver_text = template
+              substitutions = {
+                  "__FINDING__": json.dumps(identity),
+                  "__MODULE__": json.dumps(finding["module"], ensure_ascii=False),
+                  "__DECLARATION__": json.dumps(finding["declaration"], ensure_ascii=False),
+                  "__NEEDS_BODY__": "true" if finding["location"] == "definition body" else "false",
+                  "__DIRECTORY__": json.dumps(str(directory), ensure_ascii=False),
+              }
+              for old, new in substitutions.items():
+                  driver_text = driver_text.replace(old, new)
+              driver = workspace / ("DeclarationContext_" + identity + ".lean")
+              assert not driver.exists()
+              driver.write_text(imports + driver_text)
+              (directory / "driver.lean").write_bytes(driver.read_bytes())
+              result = dict(finding_id=identity, module_id=finding["module_id"],
+                  module=finding["module"], declaration=finding["declaration"],
+                  location=finding["location"], driver_sha256=sha(driver.read_bytes()),
+                  body_required=finding["location"] == "definition body", status="error")
+              print("[DECL_CONTEXT_INVOCATION]", identity, flush=True)
+              try:
+                  run = subprocess.run(["lake", "env", "lean", str(driver)], cwd=workspace,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                  result["exit_code"] = run.returncode
+                  for channel, data in (("stdout", run.stdout), ("stderr", run.stderr)):
+                      name = channel + ".log"
+                      (directory / name).write_bytes(data)
+                      result[channel] = dict(path=str((directory / name).relative_to(out)),
+                                             sha256=sha(data), bytes=len(data))
+                      print(data.decode("utf-8", errors="replace"), end="", flush=True)
+                  assert run.returncode == 0
+                  metadata = json.loads((directory / "lean-metadata.json").read_text())
+                  assert metadata["finding_id"] == identity
+                  assert metadata["reported_module"] == finding["module"]
+                  assert metadata["resolved_declaration"] == finding["declaration"]
+                  assert metadata["module_owned_constNames_membership_checked"] is True
+                  assert metadata["origin_matches_reported_module"] is True
+                  assert metadata["reported_module_index"] == metadata["actual_origin_module_index"]
+                  assert metadata["body_required"] == result["body_required"]
+                  files = ["lean-metadata.json", "type.expr.txt", "type.pretty.txt"]
+                  if result["body_required"]:
+                      assert metadata["constant_kind"] in ("definition", "opaque")
+                      files += ["value.expr.txt", "value.pretty.txt"]
+                  snapshots = {}
+                  for name in files:
+                      data = (directory / name).read_bytes()
+                      assert data.strip()
+                      if name.endswith(".pretty.txt"):
+                          assert "⋯" not in data.decode() and "..." not in data.decode(), "truncated pretty context"
+                      snapshots[name] = dict(path=str((directory / name).relative_to(out)),
+                                             sha256=sha(data), bytes=len(data))
+                  result.update(status="completed", lean_metadata=metadata, snapshots=snapshots)
+              except Exception as exc:
+                  result["error"] = repr(exc)
+                  errors.append(dict(finding_id=identity, error=repr(exc)))
+              # Persist partial snapshot files and diagnostics even when one lookup fails.
+              result["retained_files"] = [dict(path=str(f.relative_to(out)),
+                  sha256=sha(f.read_bytes()), bytes=f.stat().st_size)
+                  for f in sorted(directory.iterdir()) if f.is_file()]
+              (directory / "result.json").write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n")
+              results.append(result)
+          # An empty finding set still reads the whole closure in the exact environment.
+          if not findings:
+              driver = workspace / "DeclarationContext_Empty.lean"
+              assert not driver.exists()
+              driver.write_text(imports + "\n#check True\n")
+              (out / "contexts-empty.driver.lean").write_bytes(driver.read_bytes())
+              run = subprocess.run(["lake", "env", "lean", str(driver)], cwd=workspace,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+              for channel, data in (("stdout", run.stdout), ("stderr", run.stderr)):
+                  (out / ("contexts-empty." + channel + ".log")).write_bytes(data)
+              if run.returncode != 0:
+                  errors.append(dict(error="empty context environment import failed", exit_code=run.returncode))
+          for row in audit["project_manifest"]:
+              obj = workspace / (".lake/build/lib/lean/" + row["module"].replace(".", "/") + ".olean")
+              src = workspace / ("src/" + row["module"].replace(".", "/") + ".lean")
+              try:
+                  assert sha(obj.read_bytes()) == row["object_sha256"]
+                  assert sha(src.read_bytes()) == row["ported_source_sha256"]
+              except Exception as exc:
+                  errors.append(dict(module_id=row["id"], error=repr(exc)))
+          facts = dict(schema_version=3, source_commit=audit["source_commit"],
+              run_id=audit["run_id"], profile=audit["profile"],
+              audit_facts_sha256=sha(audit_bytes), finding_count=len(findings),
+              contexts=results, operational_errors=errors,
+              status="error" if errors else "completed")
+          (out / "declaration-context-facts.json").write_text(json.dumps(facts, indent=2, ensure_ascii=False) + "\n")
+          if errors:
+              raise SystemExit("DECLARATION_CONTEXT_EXTRACTION_ERROR " + repr(errors))
+          assert len(results) == len(findings)
+          print("DECLARATION_CONTEXTS_EXTRACTED", len(results), "finding(s); review still required.", flush=True)
+          
+          PY
+      - name: Compile the separately pinned source-bound certificate and check its axioms
+        id: certificate
+        if: ${{ always() && steps.prepare.outcome == 'success' && steps.build.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, re, subprocess
+          from pathlib import Path
+          
+          sha = lambda b: hashlib.sha256(b).hexdigest()
+          out = Path(os.environ["RUNNER_TEMP"]) / "semantic-review-v3"
+          workspace = Path(os.environ["RUNNER_TEMP"]) / "port-semantic-workspace"
+          helper = Path(os.environ["GITHUB_WORKSPACE"]) / "helper"
+          inputs = json.loads((out / "inputs.json").read_text())
+          profile = inputs["profile"]
+          certificate = helper / profile["certificate_path"]
+          facts = dict(source_commit=inputs["source_commit"], run_id=inputs["run_id"],
+              helper_commit=profile["helper_commit"], path=profile["certificate_path"],
+              sha256=sha(certificate.read_bytes()), lean=profile["lean"], mathlib=profile["mathlib"],
+              required_ported_source_sha256=profile["certified_ported_source_sha256"],
+              status="not_run")
+          try:
+              assert facts["sha256"] == profile["certificate_sha256"]
+              audit = json.loads((out / "audit-facts.json").read_text())
+              by_id = {row["id"]: row for row in audit["project_manifest"]}
+              for mid, expected in profile["certified_ported_source_sha256"].items():
+                  assert by_id[mid]["ported_source_sha256"] == expected
+              facts["project_bindings"] = audit["project_manifest"]
+              # Strip nested comments and strings solely for the forbidden-command scan.
+              # The exact unmodified bytes are separately pinned and compiled.
+              text = certificate.read_text()
+              clean, i, depth = [], 0, 0
+              while i < len(text):
+                  if depth:
+                      if text.startswith("/-", i): depth += 1; i += 2
+                      elif text.startswith("-/", i): depth -= 1; i += 2
+                      else: i += 1
+                  elif text.startswith("/-", i): depth = 1; i += 2
+                  elif text.startswith("--", i):
+                      end = text.find("\n", i); i = len(text) if end < 0 else end
+                  elif text[i] == '"':
+                      i += 1
+                      while i < len(text):
+                          if text[i] == "\\": i += 2
+                          elif text[i] == '"': i += 1; break
+                          else: i += 1
+                      clean.append(" ")
+                  else: clean.append(text[i]); i += 1
+              assert depth == 0
+              assert not re.search(r"\b(sorry|admit|axiom|unsafe|native_decide|set_option|sorryAx)\b"
+                                   r"|@\[\s*implemented_by\b", "".join(clean))
+              target = workspace / "GuardedProductCertificate.lean"
+              assert not target.exists()
+              target.write_bytes(certificate.read_bytes())
+              output = workspace / ".lake/build/lib/lean/GuardedProductCertificate.olean"
+              assert not output.exists()
+              command = ["lake", "env", "lean", "-o", str(output), str(target)]
+              run = subprocess.run(command, cwd=workspace, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+              facts.update(command=command, compile_exit_code=run.returncode)
+              for channel, data in (("stdout", run.stdout), ("stderr", run.stderr)):
+                  name = "certificate.compile." + channel + ".log"
+                  (out / name).write_bytes(data)
+                  facts[channel] = dict(path=name, sha256=sha(data), bytes=len(data))
+                  print(data.decode("utf-8", errors="replace"), end="", flush=True)
+              assert run.returncode == 0 and output.is_file()
+              facts["object_sha256"] = sha(output.read_bytes())
+              # Collect axioms of every certificate-owned declaration, including generated
+              # declarations. This is separate from the unchanged reused-name auditors.
+              driver = workspace / "CertificateAxioms.lean"
+              assert not driver.exists()
+              driver.write_text("""import Lean
+          import GuardedProductCertificate
+          open Lean in
+          run_cmd do
+            let env ← getEnv
+            let some idx := env.getModuleIdx? \u0060GuardedProductCertificate
+              | throwError "Certificate module missing"
+            let allowed : Array Name := #[\u0060propext, \u0060Classical.choice, \u0060Quot.sound]
+            for target in env.header.moduleData[idx.toNat]!.constNames do
+              let some ci := env.find? target | throwError "Missing certificate declaration"
+              if ci matches .axiomInfo _ then
+                throwError "Certificate declares an axiom: {target}"
+              let actual ← collectAxioms target
+              for ax in actual do
+                unless allowed.contains ax do
+                  throwError "Unexpected certificate axiom {ax} in {target}"
+              logInfo m!"[CERTIFICATE_AXIOMS] {target}: {actual}"
+            logInfo "[CERTIFICATE_AXIOMS_CHECK_COMPLETED]"
+          """)
+              axcmd = ["lake", "env", "lean", str(driver)]
+              checked = subprocess.run(axcmd, cwd=workspace, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+              facts.update(axiom_command=axcmd, axiom_exit_code=checked.returncode,
+                           axiom_driver_sha256=sha(driver.read_bytes()),
+                           allowed_axioms=["propext", "Classical.choice", "Quot.sound"])
+              for channel, data in (("stdout", checked.stdout), ("stderr", checked.stderr)):
+                  name = "certificate.axioms." + channel + ".log"
+                  (out / name).write_bytes(data)
+                  facts["axioms_" + channel] = dict(path=name, sha256=sha(data), bytes=len(data))
+                  print(data.decode("utf-8", errors="replace"), end="", flush=True)
+              assert checked.returncode == 0
+              assert checked.stdout.decode().count("[CERTIFICATE_AXIOMS_CHECK_COMPLETED]") == 1
+              for row in audit["project_manifest"]:
+                  obj = workspace / (".lake/build/lib/lean/" + row["module"].replace(".", "/") + ".olean")
+                  src = workspace / ("src/" + row["module"].replace(".", "/") + ".lean")
+                  assert sha(obj.read_bytes()) == row["object_sha256"]
+                  assert sha(src.read_bytes()) == row["ported_source_sha256"]
+              facts["status"] = "passed"
+              print("CERTIFICATE_CHECK_PASSED", inputs["source_commit"], profile["certificate_sha256"], flush=True)
+          except Exception as exc:
+              facts.update(status="failed", error=repr(exc))
+              raise
+          finally:
+              (out / "certificate-facts.json").write_text(json.dumps(facts, indent=2) + "\n")
+          # A certificate pass is not an audit pass and does not review any finding.
+          PY
+      - name: Retain artifact digests and report facts without approving findings
+        if: ${{ always() }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          out = Path(os.environ["RUNNER_TEMP"]) / "semantic-review-v3"
+          if out.exists():
+              files = [dict(path=str(path.relative_to(out)), sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+                            bytes=path.stat().st_size) for path in sorted(out.rglob("*")) if path.is_file()]
+              (out / "artifact-files.json").write_text(json.dumps(dict(schema_version=3, files=files), indent=2) + "\n")
+              if (out / "audit-facts.json").exists():
+                  audit = json.loads((out / "audit-facts.json").read_text())
+                  print("AUDIT_FACT_STATUS", audit["audit_status"], "findings", audit["finding_count"])
+                  if audit["finding_count"]:
+                      print("REVIEW_REQUIRED: every retained finding needs independent declaration-local review and matching record notes.")
+              if (out / "certificate-facts.json").exists():
+                  certificate = json.loads((out / "certificate-facts.json").read_text())
+                  print("CERTIFICATE_FACT_STATUS", certificate["status"])
+              if (out / "declaration-context-facts.json").exists():
+                  contexts = json.loads((out / "declaration-context-facts.json").read_text())
+                  print("DECLARATION_CONTEXT_FACT_STATUS", contexts["status"])
+              print("PUBLICATION_NOT_APPROVED_BY_THIS_JOB")
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: semantic-review-v3-${{ github.run_id }}
+          path: ${{ runner.temp }}/semantic-review-v3
+          if-no-files-found: warn
+          retention-days: 30
+
