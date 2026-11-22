@@ -1,0 +1,21 @@
+--- a/src/GroundTheory/PAdicHodge/CyclotomicTower.lean
++++ b/src/GroundTheory/PAdicHodge/CyclotomicTower.lean
+@@ -147,8 +147,7 @@
+ 
+ theorem totient_prime_pow_succ {k : ℕ} (hk : 1 ≤ k) :
+     Nat.totient (p ^ (k + 1)) = p * Nat.totient (p ^ k) := by
+-  rw [pow_succ', Nat.totient_mul_of_prime_of_dvd (Fact.out : p.Prime)
+-    (dvd_pow_self p (by omega))]
++  rw [pow_succ', Nat.totient_mul_of_dvd (dvd_pow_self p (by omega))]
+ 
+ theorem natDegree_minpoly_cycl_of_adjoin_eq {k : ℕ} (hk : 1 ≤ k) {y : PadicAlgCl p}
+     (hy : ℚ_[p]⟮y⟯ = cycl p (k + 1)) : (minpoly (cycl p k) y).natDegree = p := by
+@@ -170,7 +169,7 @@
+   have hc : η ^ p ∈ cycl p k := pow_eq_one_mem_cycl (by rw [← pow_mul, ← pow_succ']; exact hη.pow_eq_one)
+   set f : (cycl p k)[X] := X ^ p - C ⟨η ^ p, hc⟩ with hf
+   have hfm : f.Monic := monic_X_pow_sub_C _ (by omega)
+-  have hfdeg : f.natDegree = p := natDegree_X_pow_sub_C
++  have hfdeg : f.natDegree = p := natDegree_X_pow_sub_C (⟨η ^ p, hc⟩ : cycl p k)
+   have hroot : aeval η f = 0 := by simp [hf]
+   have hdvd : minpoly (cycl p k) η ∣ f := minpoly.dvd _ _ hroot
+   have heq : f = minpoly (cycl p k) η :=

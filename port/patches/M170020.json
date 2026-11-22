@@ -3,6 +3,6 @@
   "source_sha256": "ef88870910fe26f682d7206537f0530b13181092a5e9c55f2addff38548df512",
   "lean": "leanprover/lean4:v4.36.0",
   "mathlib": "fc4f59e577feb1a4956671bc04ac18aaaf8cd842",
-  "notes": "unchanged",
+  "notes": "Two proof-only API adjustments: in totient_prime_pow_succ, use Nat.totient_mul_of_dvd with the original divisibility proof; in normTrace_cycl_isPrimitiveRoot, supply the existing polynomial coefficient to natDegree_X_pow_sub_C. All 49 theorem statements and hypotheses, cyclRadius and cyclCoord definitions, imports, scopes, and the original maxSynthPendingDepth 1 setting are unchanged.",
   "evidence": "https://github.com/rohanarun/alpoge-rh-replay/issues/33920"
 }
