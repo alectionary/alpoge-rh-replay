@@ -59,9 +59,25 @@ jobs:
       - name: Install stock toolchain and measurement tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y elan bubblewrap time
-          elan toolchain install leanprover/lean4:v4.36.0
-          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          sudo apt-get install -y bubblewrap time
+          installer_dir="$(mktemp -d "$RUNNER_TEMP/elan-4.4.0.XXXXXX")"
+          curl --fail --location --silent --show-error --max-time 120 \
+            --output "$installer_dir/elan.tar.gz" \
+            https://github.com/leanprover/elan/releases/download/v4.4.0/elan-x86_64-unknown-linux-gnu.tar.gz
+          printf '0e8250aa2be86c7af929ade68db617af9edc8b9ccf6eaf5ece228250d0d032e2  %s\n' "$installer_dir/elan.tar.gz" | sha256sum --check --strict
+          test "$(tar -tzf "$installer_dir/elan.tar.gz")" = elan-init
+          tar -xzf "$installer_dir/elan.tar.gz" -C "$installer_dir"
+          test -f "$installer_dir/elan-init" && test ! -L "$installer_dir/elan-init"
+          export ELAN_HOME="$HOME/.elan"
+          timeout 120 "$installer_dir/elan-init" -y --no-modify-path --default-toolchain none
+          export PATH="$ELAN_HOME/bin:$PATH"
+          hash -r
+          printf '%s\n' "$ELAN_HOME/bin" >> "$GITHUB_PATH"
+          printf 'ELAN_HOME=%s\n' "$ELAN_HOME" >> "$GITHUB_ENV"
+          "$ELAN_HOME/bin/elan" --version | tee "$installer_dir/elan-version.txt"
+          grep -Eq '^elan 4[.]4[.]0( |$)' "$installer_dir/elan-version.txt"
+          test "$(command -v elan)" = "$ELAN_HOME/bin/elan"
+          timeout 600 "$ELAN_HOME/bin/elan" toolchain install leanprover/lean4:v4.36.0
       - name: Run bounded union warm-up and ABBAAB comparison
         run: |
           python3 benchmark/benchmark.py run --config benchmark/config.json --config-sha256 "$EXPECTED_CONFIG_SHA256" \

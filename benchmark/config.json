@@ -25,11 +25,11 @@
   },
   "required_reviews": {
     "independent_candidate": "7995575273dbd47462488aa819d34f36fce8386856d1323ca2094d3638cd24fa",
-    "independent_method": "360e0ca29e3d1036186bccd77aa13fad017f7f42e87917dc078cd058f13a0c6a",
+    "independent_method": "689fa4248fc9ae50cacef375ecab03c82d09d33b590f5d5b83930b35a15abe92",
     "root_candidate": "bad9358d68e8b1d90e6f5d2d8817c222974ff97e0b1f20aaeee3d406c1b005d5",
-    "root_method": "4f948ba14356339f735b28ea9f74860b4cc4d045b9a5e84c991c2c2455299e92"
+    "root_method": "e7b7f6e04194f5aeebf844880dccb4fcf8727f4fc7457e52f27ab2289405db54"
   },
   "schema_version": 1,
-  "status": "Reviewed bound Ubuntu22 root-separation experiment after retained namespace-only failure; no compilation, timing or publication result assigned.",
+  "status": "Reviewed bound Ubuntu22 experiment with pinned official Elan4.4 bootstrap; earlier setup failures retained separately, no source compilation or timing result assigned.",
   "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives"
 }
