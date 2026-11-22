@@ -1,33 +1,33 @@
 {
   "baseline": {
-    "commit": "c7791603122c0328f79e49f6be5d7d4402effc53",
+    "commit": "1b894f7511841e6607bc0398cf2657526bbb29d9",
     "repository": "leanprover-community/riemann-hypothesis"
   },
   "candidate": {
     "additional_private_imports": [],
     "patch_path": "candidate.patch",
-    "patch_sha256": "6bfa344307c5c16155d77a4e7ffd5bf78c82c4d2d73ccb243bf5a3f26e0e379d",
+    "patch_sha256": "e3ea8d208e92f303680476b1c75f3bd567ecea3d9bdf5ea1282a96ba9d3e379f",
     "source_path": "candidate.lean",
-    "source_sha256": "e751d605ff09547f8cc4638ee410dc302e494a5d83d21d07777f4e019999a8b8"
+    "source_sha256": "6e3f5d9ef69c538e44c6f7af155f7ee2bbba27bae09abc6d88cb46ee226f3872"
   },
   "comparison_mode": "baseline_closure_plus_target_patch",
   "execution_repository": "alectionary/alpoge-rh-replay",
   "manifest": {
     "path": "source-manifest.json",
-    "sha256": "58347cd39be240ce4e3daf899d321c918959600232455b863ce6460a8d21d8a6"
+    "sha256": "de1a6a096cd17a98ba4652c0c40c3c0cbdd522a904a1c94de645a6c7f77d59c0"
   },
   "order": "ABBAAB",
   "post_build_driver": {
     "path": "post-build-check.lean",
-    "sha256": "c110c6df62e78877786eb47f7297ae811d363405dd3acf4e92e836ae1d7b2a4c"
+    "sha256": "831c1fbcf49ef92d8aff1ce9b95cbd2a78ebd75f135ef44b9f9f9b51651c8625"
   },
   "required_reviews": {
-    "independent_candidate": "676eb973b741373f6f6a3d5502e7cd0847f2d4b011c74d1564b0cabd3911931d",
-    "independent_method": "045dc5ba7f5fe331339c39680df05579184cc5d954e0b3ff80ef8acdd5a7f896",
-    "root_candidate": "24daae49e38bee4bafd283fd3c59491c03c3a3706a6ae27c801932b2cce78921",
-    "root_method": "8aa1c1f46ea932c1cedb99a49df74f704d4193a454bf502ece442db8331fdad5"
+    "independent_candidate": "0eb72324f6bb40c3ae3a35efec42411c0411881d2754edbd90118fe2e029cf71",
+    "independent_method": "690eb1717b60d3bea42fc8c9279d6192e3d76bde3be14f6c1d1a867282139996",
+    "root_candidate": "157307907dbb7bb030f85268a2b8dd0f44b90dbec044f4b672eb14276da070b5",
+    "root_method": "f72ceaabb07748853d19c1e4d8b819a1dc74ab9fccc5c47c32041e39d6b4269a"
   },
   "schema_version": 1,
-  "status": "Reviewed fixed six-source two-proof matrix experiment; original statements/imports/options preserved, candidate compilation and paired measurements pending.",
-  "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep"
+  "status": "Reviewed bounded DB.pi experiment; no actual compilation or performance result and no canonical PR approval.",
+  "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts"
 }
