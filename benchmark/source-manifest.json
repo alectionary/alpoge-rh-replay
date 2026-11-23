@@ -85,89 +85,6 @@
       ],
       "sha256": "f6dab9f2b1d3edef227b22df3f36b50338efb6b387c79b437c97ec293f1eadc4"
     },
-    "Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts": {
-      "bytes": 120124,
-      "import_forms": [
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.StatementG",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionCriticalPoints",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.AdditiveCharacterPsi",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.AffineChangeOfVariables",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.OrbitalIntegralConvergesAbs",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.StandardCharacterExists",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.FourierUniquenessMirabolic",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.WeakApproximationGL",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.WhittakerVanishingImpliesZero",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives",
-          "public": true
-        }
-      ],
-      "lines": 2158,
-      "other_imports": [],
-      "path": "src/Formalism/HermitianCurvature/HermitianCurvatureProofs/EtaleIntegralityFacts.lean",
-      "project_imports": [
-        "Formalism.HermitianCurvature.StatementG",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionCriticalPoints",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.AdditiveCharacterPsi",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.AffineChangeOfVariables",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.OrbitalIntegralConvergesAbs",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.StandardCharacterExists",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.FourierUniquenessMirabolic",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.WeakApproximationGL",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.WhittakerVanishingImpliesZero",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.CuspidalIrreducibleSubrep",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives"
-      ],
-      "sha256": "91d9392acb58ae737203bc8385f51bb01a13e670cdea47b8c808e31d4e943872"
-    },
     "Formalism.HermitianCurvature.HermitianCurvatureProofs.FourierUniquenessMirabolic": {
       "bytes": 10548,
       "import_forms": [
@@ -336,75 +253,6 @@
       ],
       "sha256": "af156e904bae693de43d7d5f3b826c54ecbd86330dac10a090995150c98c0eff"
     },
-    "Formalism.HermitianCurvature.HermitianCurvatureProofs.StandardCharacterExists": {
-      "bytes": 17550,
-      "import_forms": [
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.StatementG",
-          "public": true
-        }
-      ],
-      "lines": 380,
-      "other_imports": [],
-      "path": "src/Formalism/HermitianCurvature/HermitianCurvatureProofs/StandardCharacterExists.lean",
-      "project_imports": [
-        "Formalism.HermitianCurvature.StatementG"
-      ],
-      "sha256": "988619fc5f144ba47059add4c4dbbf749992db79b38c24a854eb3cb3fc281791"
-    },
-    "Formalism.HermitianCurvature.HermitianCurvatureProofs.WeakApproximationGL": {
-      "bytes": 11688,
-      "import_forms": [
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.StatementG",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionCriticalPoints",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.ContinuousInvUpper",
-          "public": true
-        }
-      ],
-      "lines": 254,
-      "other_imports": [],
-      "path": "src/Formalism/HermitianCurvature/HermitianCurvatureProofs/WeakApproximationGL.lean",
-      "project_imports": [
-        "Formalism.HermitianCurvature.StatementG",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionCriticalPoints",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.ContinuousInvUpper"
-      ],
-      "sha256": "e2f3bcbcec0f105bb085e455a06d99342df0c91697b0e1ea3f72021bc16c8d05"
-    },
-    "Formalism.HermitianCurvature.HermitianCurvatureProofs.WhittakerVanishingImpliesZero": {
-      "bytes": 24801,
-      "import_forms": [
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.StatementG",
-          "public": true
-        },
-        {
-          "all": false,
-          "module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper",
-          "public": true
-        }
-      ],
-      "lines": 469,
-      "other_imports": [],
-      "path": "src/Formalism/HermitianCurvature/HermitianCurvatureProofs/WhittakerVanishingImpliesZero.lean",
-      "project_imports": [
-        "Formalism.HermitianCurvature.StatementG",
-        "Formalism.HermitianCurvature.HermitianCurvatureProofs.RemainderNormLeStrictUpper"
-      ],
-      "sha256": "87df976011637332fb08d6ed3745d127a71e6e2e9aa384267a83e2c040524545"
-    },
     "Formalism.HermitianCurvature.StatementG": {
       "bytes": 37385,
       "import_forms": [
@@ -424,7 +272,7 @@
     }
   },
   "schema_version": 1,
-  "scope": "Pinned fifteen-source unchanged closure for amplitude_bound_far and the far-amplitude derivative bound; baseline and candidate have the same twelve direct imports. Source inspection only, no build or proof approval.",
-  "source_commit": "1cc42d2c900ba764cb63e3c36383c720f30a77ca",
-  "target": "Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts"
+  "scope": "Pinned eleven-source unchanged closure for the b_pow_sub_one and b_root_sep zero-import proof candidate; baseline and candidate have the same five direct imports. Source inspection only, no build or proof approval.",
+  "source_commit": "51d9b1a28026d458aef9c9af3df8b083276e3d2d",
+  "target": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives"
 }
