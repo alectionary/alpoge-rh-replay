@@ -1132,34 +1132,20 @@ theorem amplitude_bound_far : Formalism.FourierDecayAlt.G.AmpBoundFar := by
   obtain ⟨cQ, hcQ⟩ : ∃ cQ : ℝ, cQ = 2 ^ q * ((m : ℝ) + 2) ^ 2 * q.factorial + |RD| + ‖β‖ + 2 := ⟨_, rfl⟩
   obtain ⟨cW, hcW⟩ : ∃ cW : ℝ, cW = cQ ^ (4 * (m + 2)) + c₁⁻¹ + c₂⁻¹ := ⟨_, rfl⟩
   have hpos1 : (0 : ℝ) ≤ 2 ^ q * ((m : ℝ) + 2) ^ 2 * q.factorial := by positivity
-  have hcQsum : 2 ^ q * ((m : ℝ) + 2) ^ 2 * q.factorial + |RD| ≤ cQ := by
-    rw [hcQ]
-    exact (le_add_of_nonneg_right (norm_nonneg β)).trans
-      (le_add_of_nonneg_right (two_pos.le : (0 : ℝ) ≤ 2))
-  have hcQbase : 2 ^ q * ((m : ℝ) + 2) ^ 2 * q.factorial ≤ cQ :=
-    (le_add_of_nonneg_right (abs_nonneg RD)).trans hcQsum
-  have hcQabs : |RD| ≤ cQ := (le_add_of_nonneg_left hpos1).trans hcQsum
-  have hcQβ : ‖β‖ ≤ cQ := by
-    rw [hcQ]
-    exact (le_add_of_nonneg_left (add_nonneg hpos1 (abs_nonneg RD))).trans
-      (le_add_of_nonneg_right (two_pos.le : (0 : ℝ) ≤ 2))
-  have hcQ2 : 2 ≤ cQ := by
-    rw [hcQ]
-    exact le_add_of_nonneg_left (add_nonneg (add_nonneg hpos1 (abs_nonneg RD)) (norm_nonneg β))
-  have hcQ1 : 1 ≤ cQ := one_le_two.trans hcQ2
-  have hinv₁0 : 0 ≤ c₁⁻¹ := (inv_pos.2 hc₁).le
-  have hinv₂0 : 0 ≤ c₂⁻¹ := (inv_pos.2 hc₂).le
-  have hcWpow : cQ ^ (4 * (m + 2)) ≤ cW := by
-    rw [hcW]
-    exact (le_add_of_nonneg_right hinv₁0).trans (le_add_of_nonneg_right hinv₂0)
-  have hcWc₁ : c₁⁻¹ ≤ cW := by
-    rw [hcW]
-    exact (le_add_of_nonneg_left (pow_nonneg (zero_le_one.trans hcQ1) _)).trans
-      (le_add_of_nonneg_right hinv₂0)
-  have hcWc₂ : c₂⁻¹ ≤ cW := by
-    rw [hcW]
-    exact le_add_of_nonneg_left (add_nonneg (pow_nonneg (zero_le_one.trans hcQ1) _) hinv₁0)
-  have hcW1 : 1 ≤ cW := (one_le_pow₀ hcQ1).trans hcWpow
+  have hRD0 : 0 ≤ |RD| := abs_nonneg RD
+  have hβ0 : 0 ≤ ‖β‖ := norm_nonneg β
+  have hcQbase : 2 ^ q * ((m : ℝ) + 2) ^ 2 * q.factorial ≤ cQ := by linarith
+  have hcQabs : |RD| ≤ cQ := by linarith
+  have hcQβ : ‖β‖ ≤ cQ := by linarith
+  have hcQ2 : 2 ≤ cQ := by linarith
+  have hcQ1 : 1 ≤ cQ := by linarith
+  have hcQpow : 1 ≤ cQ ^ (4 * (m + 2)) := one_le_pow₀ hcQ1
+  have hinv₁ : 0 < c₁⁻¹ := inv_pos.2 hc₁
+  have hinv₂ : 0 < c₂⁻¹ := inv_pos.2 hc₂
+  have hcWpow : cQ ^ (4 * (m + 2)) ≤ cW := by linarith
+  have hcWc₁ : c₁⁻¹ ≤ cW := by linarith
+  have hcWc₂ : c₂⁻¹ ≤ cW := by linarith
+  have hcW1 : 1 ≤ cW := by linarith
   refine ⟨2 ^ q * Cf * (max Cc 0) * cW ^ (a + b * q), min (min t₁ t₂) 1, c₂,
     lt_min (lt_min ht₁ ht₂) one_pos, hc₂, ?_⟩
   intro V _ _ _ Φ A K k hA hqk hΦ t D ht htt hD y
@@ -1171,8 +1157,8 @@ theorem amplitude_bound_far : Formalism.FourierDecayAlt.G.AmpBoundFar := by
   have htt₂ : ‖t‖ ≤ t₂ := htt.trans ((min_le_left _ _).trans (min_le_right _ _))
   obtain ⟨τ, hτdef⟩ : ∃ τ : ℝ, τ = ‖t‖ ^ (-ε) := ⟨_, rfl⟩
   have hτ1 : 1 ≤ τ := by
-    rw [hτdef]; exact Real.one_le_rpow_of_pos_of_le_one_of_nonpos htn ht1 (neg_nonpos.mpr hε.le)
-  have hτ0 : 0 < τ := zero_lt_one.trans_le hτ1
+    rw [hτdef]; exact Real.one_le_rpow_of_pos_of_le_one_of_nonpos htn ht1 (by linarith)
+  have hτ0 : 0 < τ := by linarith
   have hτinv : ‖t‖ ^ ε = τ⁻¹ := by rw [hτdef, Real.rpow_neg htn.le, inv_inv]
   rw [← hτdef]
 
@@ -1187,21 +1173,11 @@ theorem amplitude_bound_far : Formalism.FourierDecayAlt.G.AmpBoundFar := by
     have hy : ‖(x, y).2‖ ≤ 2 * τ := (y_le_MXY m D t (x, y)).trans hM.le
     have hρ : ‖rhoXY m D t (x, y)‖ ≤ 2 * τ := (rho_le_MXY m D t (x, y)).trans hM.le
     have hxo : ∀ k, xOf (Xm m (x, y)) (Bm m (x, y)) k = x k := (split_xy_matrix m t 0 (x, y)).1
-    have hXm : ∀ i j, ‖Xm m (x, y) i j‖ ≤ 2 * ‖t‖ ^ (-ε) := by
-      rw [← hτdef]
-      exact Xm_le m (x, y) h2τ hxk hy
-    have hBm : ∀ i, ‖Bm m (x, y) i‖ ≤ 2 * ‖t‖ ^ (-ε) := by
-      rw [← hτdef]
-      exact Bm_le m (x, y) h2τ hxk hy
-    have hRho : ‖rhoXY m D t (x, y)‖ ≤ 2 * ‖t‖ ^ (-ε) := by
-      rw [← hτdef]
-      exact hρ
-    have hRm : ∀ k, ‖rm m (x, y) k‖ ≤ 2 * ‖t‖ ^ (-ε) := by
-      rw [← hτdef]
-      exact rm_le m (x, y) h2τ hxk hy
-    have hSm : ‖sm m (x, y)‖ ≤ 2 * ‖t‖ ^ (-ε) := by
-      rw [← hτdef]
-      exact sm_le m (x, y) h2τ hxk hy
+    have hXm : ∀ i j, ‖Xm m (x, y) i j‖ ≤ 2 * ‖t‖ ^ (-ε) := by rw [← hτdef]; exact Xm_le m (x, y) h2τ hxk hy
+    have hBm : ∀ i, ‖Bm m (x, y) i‖ ≤ 2 * ‖t‖ ^ (-ε) := by rw [← hτdef]; exact Bm_le m (x, y) h2τ hxk hy
+    have hRho : ‖rhoXY m D t (x, y)‖ ≤ 2 * ‖t‖ ^ (-ε) := by rw [← hτdef]; exact hρ
+    have hRm : ∀ k, ‖rm m (x, y) k‖ ≤ 2 * ‖t‖ ^ (-ε) := by rw [← hτdef]; exact rm_le m (x, y) h2τ hxk hy
+    have hSm : ‖sm m (x, y)‖ ≤ 2 * ‖t‖ ^ (-ε) := by rw [← hτdef]; exact sm_le m (x, y) h2τ hxk hy
     have hA1 := hCof ε hε hε' D hD t ht htt₁ (Xm m (x, y)) (Bm m (x, y)) (rhoXY m D t (x, y)) (rm m (x, y))
       (sm m (x, y)) (Xm_strict m _) hXm hBm hRho hRm hSm
       (corner_XY m D t (x, y) hc)
@@ -1216,7 +1192,7 @@ theorem amplitude_bound_far : Formalism.FourierDecayAlt.G.AmpBoundFar := by
   have hτp1 : 1 ≤ τ ^ (4 * (m + 2)) := one_le_pow₀ hτ1
   have hW1 : 1 ≤ W := by
     rw [hW]; exact one_le_mul_of_one_le_of_one_le hcW1 hτp1
-  have hcQQ : cQ ≤ Q := by rw [hQ]; exact le_mul_of_one_le_right (zero_le_one.trans hcQ1) hτ1
+  have hcQQ : cQ ≤ Q := by rw [hQ]; exact le_mul_of_one_le_right (by linarith) hτ1
   have h2Q : 2 * τ ≤ Q := by rw [hQ]; exact mul_le_mul_of_nonneg_right hcQ2 hτ0.le
   have hinvW : ∀ c v : ℝ, 0 < c → c⁻¹ ≤ cW → c * τ⁻¹ ≤ v → v⁻¹ ≤ W := by
     intro c v hc hcc hv
@@ -1224,7 +1200,7 @@ theorem amplitude_bound_far : Formalism.FourierDecayAlt.G.AmpBoundFar := by
     calc v⁻¹ ≤ (c * τ⁻¹)⁻¹ := inv_anti₀ hp hv
       _ = c⁻¹ * τ := by rw [mul_inv, inv_inv]
       _ ≤ cW * τ ^ (4 * (m + 2)) :=
-          mul_le_mul hcc (le_self_pow₀ hτ1 (by omega)) hτ0.le (zero_le_one.trans hcW1)
+          mul_le_mul hcc (le_self_pow₀ hτ1 (by omega)) hτ0.le (by linarith)
       _ = W := hW.symm
 
   obtain ⟨S, hS⟩ : ∃ S : Set (Fin (m + 1) → ℂ), S = {x | ‖y‖ ≤ 2 * τ ∧ (∀ k, ‖x k‖ ≤ 2 * τ) ∧
@@ -1280,7 +1256,7 @@ theorem amplitude_bound_far : Formalism.FourierDecayAlt.G.AmpBoundFar := by
         (hcQβ.trans hcQQ)
         (by
           rw [hQ, hW, mul_pow]
-          exact mul_le_mul_of_nonneg_right hcWpow (pow_nonneg hτ0.le _))
+          exact mul_le_mul_of_nonneg_right hcWpow (by positivity))
         hcof
         (hinvW c₁ _ hc₁ hcWc₁ hcofl)
         hprod
@@ -1317,12 +1293,12 @@ theorem amplitude_bound_far : Formalism.FourierDecayAlt.G.AmpBoundFar := by
       push_cast
       ring
     calc _ ≤ 2 ^ q * Cf * (max Cc 0 * K * W ^ a) * (W ^ b) ^ j := hb
-      _ = (2 ^ q * Cf * max Cc 0 * K) * (W ^ a * (W ^ b) ^ j) := by simp only [mul_assoc]
+      _ = (2 ^ q * Cf * max Cc 0 * K) * (W ^ a * (W ^ b) ^ j) := by ring
       _ ≤ (2 ^ q * Cf * max Cc 0 * K) * (cW ^ (a + b * q) * τ ^ (4 * (a + b) * (m + 2) * (j + 1))) := by
           refine mul_le_mul_of_nonneg_left ?_ (by positivity)
           rw [hW]
           exact arith a b q j m hj cW τ hcW1 hτ1
-      _ = _ := by rw [hpow]; ac_rfl
+      _ = _ := by rw [hpow]; ring
 
 end Formalism.FourierDecayAlt.P
 

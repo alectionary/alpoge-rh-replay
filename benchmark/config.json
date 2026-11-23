@@ -6,9 +6,9 @@
   "candidate": {
     "additional_private_imports": [],
     "patch_path": "candidate.patch",
-    "patch_sha256": "b58e57cdb7e8c8d3497d115ddac3821d0191774195616601f11efdf5ba37d99b",
+    "patch_sha256": "3473e5d23bd9fc73ea4d5254a5c8ae3a74780446e6d5eede13c38b283ae961af",
     "source_path": "candidate.lean",
-    "source_sha256": "02ba7ab0da54f83795418b724ed46da0a8223eaef55553e6941aa2cf33ebab78"
+    "source_sha256": "d6cf6d5a407e6e594daee75fa009e793d7deae9c99a4da63d0ec56b467ecbcc5"
   },
   "comparison_mode": "baseline_closure_plus_target_patch",
   "execution_repository": "alectionary/alpoge-rh-replay",
