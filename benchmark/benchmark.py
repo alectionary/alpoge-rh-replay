@@ -17,18 +17,19 @@ import subprocess
 import time
 
 ORDER = 'ABBAAB'
-MANIFEST_SHA256 = '8b868c5c95cf2264faa35bd3173a21b4bb44af3c4875cf5a22edb5adb6175248'
-TARGET = 'Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts'
+MANIFEST_SHA256 = 'd2e2b32b6fc0f9e011ed17dd00597f7a1416c5b08407d4cbded09e6dee596c6a'
+TARGET = 'Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives'
 ADDITIONAL_PRIVATE_IMPORTS = ()
-BASELINE_TARGET_SHA256 = '91d9392acb58ae737203bc8385f51bb01a13e670cdea47b8c808e31d4e943872'
-CANDIDATE_SHA256 = '02ba7ab0da54f83795418b724ed46da0a8223eaef55553e6941aa2cf33ebab78'
-CANDIDATE_PATCH_SHA256 = 'b58e57cdb7e8c8d3497d115ddac3821d0191774195616601f11efdf5ba37d99b'
-BASELINE = '1cc42d2c900ba764cb63e3c36383c720f30a77ca'
+BASELINE_TARGET_SHA256 = '649fa2f2e244b20dc08ec3cff7adbd4663057adde6ecef89d9f331871139e100'
+CANDIDATE_SHA256 = 'de0170f20eaf00e7f8158f85eadb6e29a8369f5ed79cb34500b15e810dc4797e'
+CANDIDATE_PATCH_SHA256 = '49b0805600095d59a7dd304dc43f09ec414b49bbfe549a87575e93fce369d1fe'
+BASELINE = '51d9b1a28026d458aef9c9af3df8b083276e3d2d'
 LEAN = 'Lean (version 4.36.0, x86_64-unknown-linux-gnu, commit 611c117bfaf7b7ae1cfcf246ce6fba31e8f509e9, Release)'
 LAKE = 'Lake version 5.0.0-src+611c117 (Lean version 4.36.0)'
-POSTCHECK_SHA256 = '40e68808513810ada5bed50dc1d63ca867b76befc6a8e355996a70877542bceb'
+POSTCHECK_SHA256 = '24a410c93537e4568e94ac98bb527c80386499da7274dda72e7696652c1e3434'
 ALLOWED_AXIOMS = {'propext', 'Classical.choice', 'Quot.sound'}
-CHECK_DECLARATIONS = {'Formalism.FourierDecayAlt.P.amplitude_bound_far'}
+CHECK_DECLARATIONS = {'Formalism.FourierDecayAlt.P.PhaseFunctionDerivatives.b_pow_sub_one',
+                      'Formalism.FourierDecayAlt.P.PhaseFunctionDerivatives.b_root_sep'}
 COMPILED_SUFFIXES = ('.olean', '.olean.private', '.olean.server', '.ilean', '.ir', '.ir.sig',
                      '.so', '.a', '.o', '.c', '.bc', '.ll')
 PINNED_FILES = {
@@ -170,7 +171,7 @@ def load_config(path, expected_sha):
     manifest_bytes = relative_file(path.parent, config['manifest']['path']).read_bytes()
     require(config['manifest']['sha256'] == MANIFEST_SHA256 and digest(manifest_bytes) == MANIFEST_SHA256, 'Manifest digest differs.')
     manifest = json.loads(manifest_bytes)
-    require(manifest['source_commit'] == BASELINE and manifest['target'] == TARGET and len(manifest['modules']) == 15, 'Wrong source closure.')
+    require(manifest['source_commit'] == BASELINE and manifest['target'] == TARGET and len(manifest['modules']) == 11, 'Wrong source closure.')
     require(manifest['config_files'] == PINNED_FILES, 'Canonical config pins differ.')
     modules = manifest['modules']
     require(all(row['path'] == 'src/' + mid.replace('.', '/') + '.lean' and sha(row['sha256']) for mid, row in modules.items()), 'Invalid module manifest.')
@@ -181,16 +182,16 @@ def load_config(path, expected_sha):
         if mid not in seen:
             seen.add(mid)
             pending.extend(modules[mid]['project_imports'])
-    require(seen == set(modules) and len(seen) == 15, 'Baseline closure differs.')
-    require(modules[TARGET]['sha256'] == BASELINE_TARGET_SHA256, 'Wrong amplitude_bound_far baseline source.')
+    require(seen == set(modules) and len(seen) == 11, 'Baseline closure differs.')
+    require(modules[TARGET]['sha256'] == BASELINE_TARGET_SHA256, 'Wrong zero-import root-separation baseline source.')
     candidate = config['candidate']
-    require(candidate['source_sha256'] == CANDIDATE_SHA256 and candidate['patch_sha256'] == CANDIDATE_PATCH_SHA256, 'Candidate remains unbound or differs from this fixed amplitude_bound_far prototype.')
+    require(candidate['source_sha256'] == CANDIDATE_SHA256 and candidate['patch_sha256'] == CANDIDATE_PATCH_SHA256, 'Candidate remains unbound or differs from this fixed zero-import root-separation prototype.')
     data = relative_file(path.parent, candidate['source_path']).read_bytes()
     patch = relative_file(path.parent, candidate['patch_path']).read_bytes()
     require(digest(data) == candidate['source_sha256'] and digest(patch) == candidate['patch_sha256'], 'Candidate/patch bytes differ.')
     require(candidate['additional_private_imports'] == list(ADDITIONAL_PRIVATE_IMPORTS), 'Private import allowance remains unbound or differs.')
     graphs = comparison_graphs(manifest, config['target_module'], data, candidate['additional_private_imports'])
-    require(set(graphs['union']) == set(modules) and graphs['baseline'] == graphs['candidate'] and len(graphs['candidate']) == 15, 'Candidate union differs.')
+    require(set(graphs['union']) == set(modules) and graphs['baseline'] == graphs['candidate'] and len(graphs['candidate']) == 11, 'Candidate union differs.')
     driver = relative_file(path.parent, config['post_build_driver']['path']).read_bytes()
     require(config['post_build_driver']['sha256'] == POSTCHECK_SHA256 and digest(driver) == POSTCHECK_SHA256, 'Post-build driver differs.')
     return config, manifest, data, patch, raw

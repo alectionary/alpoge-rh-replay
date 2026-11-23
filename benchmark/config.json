@@ -1,33 +1,33 @@
 {
   "baseline": {
-    "commit": "1cc42d2c900ba764cb63e3c36383c720f30a77ca",
+    "commit": "51d9b1a28026d458aef9c9af3df8b083276e3d2d",
     "repository": "leanprover-community/riemann-hypothesis"
   },
   "candidate": {
     "additional_private_imports": [],
     "patch_path": "candidate.patch",
-    "patch_sha256": "b58e57cdb7e8c8d3497d115ddac3821d0191774195616601f11efdf5ba37d99b",
+    "patch_sha256": "49b0805600095d59a7dd304dc43f09ec414b49bbfe549a87575e93fce369d1fe",
     "source_path": "candidate.lean",
-    "source_sha256": "02ba7ab0da54f83795418b724ed46da0a8223eaef55553e6941aa2cf33ebab78"
+    "source_sha256": "de0170f20eaf00e7f8158f85eadb6e29a8369f5ed79cb34500b15e810dc4797e"
   },
   "comparison_mode": "baseline_closure_plus_target_patch",
   "execution_repository": "alectionary/alpoge-rh-replay",
   "manifest": {
     "path": "source-manifest.json",
-    "sha256": "8b868c5c95cf2264faa35bd3173a21b4bb44af3c4875cf5a22edb5adb6175248"
+    "sha256": "d2e2b32b6fc0f9e011ed17dd00597f7a1416c5b08407d4cbded09e6dee596c6a"
   },
   "order": "ABBAAB",
   "post_build_driver": {
     "path": "post-build-check.lean",
-    "sha256": "40e68808513810ada5bed50dc1d63ca867b76befc6a8e355996a70877542bceb"
+    "sha256": "24a410c93537e4568e94ac98bb527c80386499da7274dda72e7696652c1e3434"
   },
   "required_reviews": {
-    "independent_candidate": "a6b30310aba0410b7b597f4213ded8e0fde10c8bd72193361bd264f2625453ca",
-    "independent_method": "2aa4a2cf8126fbc6a67590aa9fad4b136accc891f015817abb1f341d88d63548",
-    "root_candidate": "3509262b8afb2318adc82c8fd698104078bfcb453252976ffb37ef70017b45ba",
-    "root_method": "39f09e9574697ebea06fd2acb52014bd14ce801a839c5399532ed3dadc162892"
+    "independent_candidate": "efb8dca2928e9d73a6d791c1a9d10d808e3d4156e5c12a6bd288a5b4bedc85ec",
+    "independent_method": "d82cce4a4fb0845de1eaf7da84e49a8edef0794d55dde8c6d3d268aedc2b4802",
+    "root_candidate": "64ffddf3b7079bcbe945c3155106ace908eaf0cfebe71cbcfe157ef8c303e5b0",
+    "root_method": "17e6b1beb4229b942a878f399b5412f1de1270f474ef2e0b9e2ad49c7aa44fc8"
   },
   "schema_version": 1,
-  "status": "Reviewed bounded amplitude_bound_far comparison; no actual compilation, performance result or canonical source PR approval.",
-  "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.EtaleIntegralityFacts"
+  "status": "Reviewed bounded zero-import two-proof root-separation comparison; no actual compilation, performance result or canonical source PR approval.",
+  "target_module": "Formalism.HermitianCurvature.HermitianCurvatureProofs.PhaseFunctionDerivatives"
 }
